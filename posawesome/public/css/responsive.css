@@ -62,14 +62,23 @@
 	--field-focus: rgba(25, 118, 210, 0.1);
 }
 
+
+
+/* Override Vuetify a
+
 /* Ensure the main viewport fills the screen without scroll */
 html,
 body {
 	height: 100%;
+        /* width: 100%;*/
 	margin: 0;
 	padding: 0;
 	overflow: hidden;
 }
+
+
+
+
 
 [data-theme="dark"] {
 	/* Dark mode colors */

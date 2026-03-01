@@ -6,6 +6,35 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		single_column: true,
 	});
 
+	// Inject persistent CSS — Frappe v16 uses .body-sidebar as the sidebar container
+	if (!document.getElementById('pos-sidebar-hide-style')) {
+		$('<style id="pos-sidebar-hide-style">').text(`
+			/* Frappe v16 main sidebar */
+			.body-sidebar {
+				display: none !important;
+				width: 0 !important;
+				min-width: 0 !important;
+			}
+
+			/* Remove left offset Frappe adds to compensate for the sidebar width */
+			.main-section,
+			.page-container,
+			.layout-main,
+			.layout-main-section-wrapper {
+				margin-left: 0 !important;
+				padding-left: 0 !important;
+				width: 100% !important;
+				max-width: 100% !important;
+			}
+		`).appendTo('head');
+	}
+
+	// Also hide via JS on every page show (handles dynamic re-renders)
+	frappe.pages["posapp"].on_page_show = function() {
+		$('.body-sidebar').hide();
+		$('.main-section, .layout-main-section-wrapper').css({ 'margin-left': '0', 'width': '100%' });
+	};
+
 	const waitForPosApp = () => {
 		return new Promise((resolve) => {
 			if (frappe.PosApp && frappe.PosApp.posapp) {
@@ -130,3 +159,4 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		update_totals_based_on_tax_inclusive();
 	});
 };
+

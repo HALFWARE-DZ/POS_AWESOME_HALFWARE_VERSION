@@ -1087,4 +1087,18 @@ export default {
 		min-height: 28px !important;
 	}
 }
+
+/* ===== SIDEBAR OFFSET FIXES ===== */
+/* Override Vuetify app-bar positioning to avoid sidebar */
+.v-app-bar.pos-navbar-enhanced {
+	left: var(--posa-desk-sidebar-width, 0px) !important;
+	width: calc(100vw - var(--posa-desk-sidebar-width, 0px)) !important;
+	max-width: calc(100vw - var(--posa-desk-sidebar-width, 0px)) !important;
+}
+
+/* Ensure app-bar doesn't interfere with sidebar */
+.v-application--wrap > .v-app-bar {
+	left: var(--posa-desk-sidebar-width, 0px) !important;
+	width: calc(100vw - var(--posa-desk-sidebar-width, 0px)) !important;
+}
 </style>

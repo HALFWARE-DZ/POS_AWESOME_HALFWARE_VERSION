@@ -514,7 +514,18 @@ export default {
 					sidebarWidth = rect.width;
 				}
 			}
+			console.log("Calculated sidebar width:", sidebarWidth);
+			
+			// Set CSS variable
 			document.documentElement.style.setProperty("--posa-desk-sidebar-width", `${sidebarWidth}px`);
+			
+			// Also directly set the container styles for more reliable positioning
+			const container = document.querySelector('.container1');
+			if (container) {
+				container.style.left = `${sidebarWidth}px`;
+				container.style.width = `calc(100vw - ${sidebarWidth}px)`;
+				console.log("Container styles set - left:", `${sidebarWidth}px`, "width:", `calc(100vw - ${sidebarWidth}px)`);
+			}
 		},
 	},
 	beforeUnmount() {
@@ -533,17 +544,28 @@ export default {
 </script>
 
 <style scoped>
+
 .container1 {
-	/* Use dynamic viewport units for better mobile support */
-	height: 100dvh;
-	max-height: 100dvh;
+	height: 100%;
+	max-height: 100%;
+	width: calc(100vw - var(--posa-desk-sidebar-width, 0px));
+	left: var(--posa-desk-sidebar-width, 0px);
+	top: 64px;
+	position: absolute;
 	overflow: hidden;
-	padding-inline-start: var(--posa-desk-sidebar-width, 0px);
 	box-sizing: border-box;
 }
 
+
+.container1.v-application {
+	display: block;
+}
+
+.container1.v-application--wrap {
+	min-height: unset;
+}
+
 .main-content {
-	/* Fill the available height of the container */
 	height: 100%;
 	display: flex;
 	flex-direction: column;
@@ -555,11 +577,18 @@ export default {
 	padding-top: 8px;
 }
 
-/* Ensure proper spacing and prevent layout shifts */
 :deep(.v-main__wrap) {
 	display: flex;
 	flex-direction: column;
 	min-height: 100%;
 	height: 100%;
+}
+
+:deep(.v-main) {
+	padding: 0;
+}
+
+:deep(.v-application--wrap) {
+	min-height: 100dvh;
 }
 </style>
