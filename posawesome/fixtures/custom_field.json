@@ -62,7 +62,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_decimal_precision",
@@ -127,7 +128,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_print_draft_invoices",
@@ -192,7 +194,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_input_qty",
@@ -257,7 +260,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_print_format_rules",
@@ -322,7 +326,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_open_print_in_new_tab",
@@ -387,7 +392,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_return_validity_days",
@@ -452,7 +458,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_enable_return_validity",
@@ -517,7 +524,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_display_authorization_code",
@@ -582,7 +590,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_sales_persons",
@@ -647,7 +656,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_show_custom_name_marker_on_print",
@@ -712,7 +722,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_line_item_name_override",
@@ -777,7 +788,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_block_sale_beyond_available_qty",
@@ -842,7 +854,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_default_country",
@@ -907,7 +920,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_language",
@@ -972,7 +986,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_silent_print",
@@ -1037,7 +1052,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_display_discount_amount",
@@ -1102,7 +1118,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_display_discount_percentage",
@@ -1167,7 +1184,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_smart_reload_mode",
@@ -1232,7 +1250,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_force_reload_items",
@@ -1297,7 +1316,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_price_list_rate_change",
@@ -1362,7 +1382,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_delete_offline_invoice",
@@ -1427,7 +1448,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_free_batch_return",
@@ -1492,7 +1514,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_return_without_invoice",
@@ -1557,7 +1580,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_search_limit",
@@ -1622,7 +1646,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_server_cache_duration",
@@ -1687,7 +1712,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_use_server_cache",
@@ -1752,7 +1778,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_force_server_items",
@@ -1817,7 +1844,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_local_storage",
@@ -1882,7 +1910,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_tax_inclusive",
@@ -1947,7 +1976,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_search_batch_no",
@@ -2012,7 +2042,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_search_serial_no",
@@ -2077,7 +2108,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_submissions_in_background_job",
@@ -2142,7 +2174,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_pos_awesome_advance_settings",
@@ -2207,7 +2240,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_mpesa_reconcile_payments",
@@ -2272,7 +2306,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_reconcile_payments",
@@ -2337,7 +2372,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_make_new_payments",
@@ -2402,7 +2438,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_use_pos_awesome_payments",
@@ -2467,7 +2504,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_duplicate_customer_names",
@@ -2532,7 +2570,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_auto_set_delivery_charges",
@@ -2597,7 +2636,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_use_delivery_charges",
@@ -2662,7 +2702,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_new_line",
@@ -2727,7 +2768,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_write_off_change",
@@ -2792,7 +2834,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_display_additional_notes",
@@ -2857,7 +2900,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_print_last_invoice",
@@ -2922,7 +2966,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_customer_purchase_order",
@@ -2987,7 +3032,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_fetch_coupon",
@@ -3052,7 +3098,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_hide_variants_items",
@@ -3117,7 +3164,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_show_template_items",
@@ -3182,7 +3230,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_create_only_sales_order",
@@ -3247,7 +3296,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_sales_order",
@@ -3312,7 +3362,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_column_break_112",
@@ -3377,7 +3428,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_zero_rated_items",
@@ -3442,7 +3494,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_display_item_code",
@@ -3507,7 +3560,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_auto_set_batch",
@@ -3572,7 +3626,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_hide_closing_shift",
@@ -3637,7 +3692,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_apply_customer_discount",
@@ -3702,7 +3758,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_return",
@@ -3767,7 +3824,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_credit_sale",
@@ -3832,7 +3890,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_partial_payment",
@@ -3897,7 +3956,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_display_items_in_stock",
@@ -3962,7 +4022,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_user_to_edit_item_discount",
@@ -4027,7 +4088,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_col_1",
@@ -4092,7 +4154,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_default_sales_order",
@@ -4157,7 +4220,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_default_card_view",
@@ -4222,7 +4286,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_show_customer_balance",
@@ -4287,7 +4352,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_change_posting_date",
@@ -4352,7 +4418,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_camera_scan_type",
@@ -4417,7 +4484,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_enable_camera_scanning",
@@ -4482,7 +4550,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_max_discount_allowed",
@@ -4547,7 +4616,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_use_percentage_discount",
@@ -4612,7 +4682,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_user_to_edit_additional_discount",
@@ -4677,7 +4748,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_user_to_edit_rate",
@@ -4742,7 +4814,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_allow_delete",
@@ -4807,7 +4880,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_cash_mode_of_payment",
@@ -4872,7 +4946,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_pos_awesome_settings",
@@ -4937,7 +5012,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-posa_force_price_from_customer_price_list",
@@ -5002,7 +5078,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-create_pos_invoice_instead_of_sales_invoice",
@@ -5067,7 +5144,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-column_break_anyol",
@@ -5132,7 +5210,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-column_break_dqsba",
@@ -5197,7 +5276,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-column_break_uolvm",
@@ -5262,7 +5342,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-pos_awesome_payments",
@@ -5327,7 +5408,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-custom_allow_select_sales_order",
@@ -5392,7 +5474,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-hide_expected_amount",
@@ -5457,7 +5540,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-use_customer_credit",
@@ -5522,7 +5606,8 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  },
  {
   "name": "POS Profile-use_cashback",
@@ -5587,6 +5672,7 @@
   "_user_tags": null,
   "_comments": null,
   "_assign": null,
-  "_liked_by": null
+  "_liked_by": null,
+  "doctype": "Custom Field"
  }
 ]
