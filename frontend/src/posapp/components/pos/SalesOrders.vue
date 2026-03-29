@@ -205,16 +205,23 @@ export default {
 						if (loadedItem) {
 							// Update the fields of selected item with loaded item's values
 							selectedItem.qty = loadedItem.qty;
-							selectedItem.amount = loadedItem.amount;
-							selectedItem.uom = loadedItem.uom;
 							selectedItem.rate = loadedItem.rate;
-							// Update other fields as needed
+							selectedItem.amount = loadedItem.amount;
+							selectedItem.discount_amount = loadedItem.discount_amount;
+							selectedItem.discount_percentage = loadedItem.discount_percentage;
+							selectedItem.price_list_rate = loadedItem.price_list_rate;
+							selectedItem.is_free_item = loadedItem.is_free_item;
 						} else {
-							// If 'item_code' doesn't exist in loadedItems, discard the item
+							// Discard item if not found in loaded items
 							selectedItems.splice(i, 1);
-							i--; // Adjust the index as items are removed
+							i--;
 						}
 					}
+				}
+
+				// Check if this is a reservation completion and set flag
+				if (this.selected[0].posa_reservation_amount && this.selected[0].posa_reservation_amount > 0) {
+					invoice_doc_for_load.is_reservation_completion = true;
 				}
 
 				this.eventBus.emit("load_order", this.selected[0]);

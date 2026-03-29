@@ -1853,6 +1853,30 @@ export default {
 			} else {
 				this.additional_discount_percentage = data.additional_discount_percentage;
 			}
+			
+			// Only handle reservation payments if this is explicitly a reservation completion
+			// Don't interfere with normal invoice loading
+			if (data.is_reservation_completion && data.posa_reservation_amount && data.posa_reservation_amount > 0) {
+				// Calculate remaining balance
+				const totalAmount = data.grand_total || 0;
+				const paidAmount = data.posa_reservation_amount;
+				const remainingAmount = totalAmount - paidAmount;
+				
+				// Set payment amounts for remaining balance
+				if (data.payments && data.payments.length > 0) {
+					data.payments.forEach((payment) => {
+						if (payment.mode_of_payment.toLowerCase() === "cash") {
+							payment.amount = remainingAmount;
+						} else {
+							payment.amount = 0;
+						}
+					});
+				}
+				
+				// Clear reservation flag since this is now a regular invoice
+				data.custom_is_reserve = 0;
+				console.log("Reservation completion - payment amounts set, flag cleared");
+			}
 			this.items.forEach((item) => {
 				if (item.serial_no) {
 					item.serial_no_selected = [];

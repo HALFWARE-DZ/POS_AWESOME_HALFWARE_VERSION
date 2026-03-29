@@ -67,10 +67,27 @@ const notifyListeners = (type, codes, meta = {}) => {
 		try {
 			listener({ type, codes, snapshot, meta });
 		} catch (error) {
-			// eslint-disable-next-line no-console
-			console.error("Stock listener failed", error);
+			console.error("Stock coordinator listener error:", error);
 		}
 	});
+	
+	// Emit to global eventBus if available
+	if (typeof window !== 'undefined' && window.eventBus) {
+		codes.forEach(code => {
+			const availability = getAvailability(code);
+			if (availability !== null) {
+				window.eventBus.emit("stock_availability_updated", {
+					item_code: code,
+					available_qty: availability,
+					reserved_qty: getReserved(code),
+					base_qty: getBase(code)
+				});
+			}
+		});
+	} else {
+		// Fallback: try to access eventBus from Vue components
+		console.warn("EventBus not available for stock updates");
+	}
 };
 
 const updateBaseQuantities = (entries = [], options = {}) => {
@@ -316,37 +333,76 @@ const primeFromItems = (items = [], options = {}) => {
 const applyInvoiceConsumption = (items = [], options = {}) => {
 	const { silent = false } = options;
 	const changed = new Set();
-	items.forEach((entry) => {
-		if (!entry) {
-			return;
-		}
-		const code = normalizeCode(entry.item_code);
-		if (!code) {
-			return;
-		}
-		if (!baseQuantities.has(code)) {
-			return;
-		}
-		const stockQty = toNumber(entry.stock_qty);
-		let consumption = stockQty;
-		if (consumption === null) {
-			const qty = toNumber(entry.qty);
-			const factor = toNumber(entry.conversion_factor);
-			if (qty !== null) {
-				const multiplier = factor !== null && factor !== 0 ? factor : 1;
-				consumption = qty * multiplier;
+	
+	// Handle reservations differently
+	if (options.source === "reservation") {
+		items.forEach((entry) => {
+			if (!entry) {
+				return;
 			}
-		}
-		if (consumption === null) {
-			return;
-		}
-		const current = baseQuantities.get(code);
-		const next = current - consumption;
-		if (next !== current) {
-			baseQuantities.set(code, next);
-			changed.add(code);
-		}
-	});
+			const code = normalizeCode(entry.item_code);
+			if (!code) {
+				return;
+			}
+			if (!baseQuantities.has(code)) {
+				return;
+			}
+			const stockQty = toNumber(entry.stock_qty);
+			let consumption = stockQty;
+			if (consumption === null) {
+				const qty = toNumber(entry.qty);
+				const factor = toNumber(entry.conversion_factor);
+				if (qty !== null) {
+					const multiplier = factor !== null && factor !== 0 ? factor : 1;
+					consumption = qty * multiplier;
+				}
+			}
+			if (consumption === null) {
+				return;
+			}
+			// For reservations, add to reserved quantities instead of decreasing base
+			const currentReserved = reservedQuantities.get(code) || 0;
+			const nextReserved = currentReserved + consumption;
+			if (nextReserved !== currentReserved) {
+				reservedQuantities.set(code, nextReserved);
+				changed.add(code);
+			}
+		});
+	} else {
+		// Normal invoice consumption
+		items.forEach((entry) => {
+			if (!entry) {
+				return;
+			}
+			const code = normalizeCode(entry.item_code);
+			if (!code) {
+				return;
+			}
+			if (!baseQuantities.has(code)) {
+				return;
+			}
+			const stockQty = toNumber(entry.stock_qty);
+			let consumption = stockQty;
+			if (consumption === null) {
+				const qty = toNumber(entry.qty);
+				const factor = toNumber(entry.conversion_factor);
+				if (qty !== null) {
+					const multiplier = factor !== null && factor !== 0 ? factor : 1;
+					consumption = qty * multiplier;
+				}
+			}
+			if (consumption === null) {
+				return;
+			}
+			const current = baseQuantities.get(code);
+			const next = current - consumption;
+			if (next !== current) {
+				baseQuantities.set(code, next);
+				changed.add(code);
+			}
+		});
+	}
+	
 	const affected = Array.from(changed);
 	affected.forEach((code) => computeAvailability(code));
 	if (!silent && affected.length) {

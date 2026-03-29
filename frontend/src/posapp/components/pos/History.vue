@@ -133,7 +133,15 @@
 							<div class="d-flex align-center">
 								<span>{{ invoice.name }}</span>
 								<v-chip
-									:size="x-small"
+									v-if="invoice.custom_is_reserve"
+									:size="'x-small'"
+									color="blue"
+									class="ml-2"
+								>
+									Reservation
+								</v-chip>
+								<v-chip
+									:size="'x-small'"
 									:color="getStatusColor(invoice.status)"
 									class="ml-2"
 								>
@@ -513,21 +521,37 @@ export default {
 			try {
 				const filters = this.buildFilters();
 				
+				// Search for Sales Invoices with custom_is_reserve filter
 				const result = await frappe.call({
 					method: 'frappe.client.get_list',
 					args: {
 						doctype: 'Sales Invoice',
 						fields: [
 							'name', 'customer', 'posting_date', 'grand_total',
-							'status', 'remarks', 'currency', 'outstanding_amount', 'custom_barcode'
+							'status', 'remarks', 'currency', 'outstanding_amount', 'custom_barcode', 'custom_is_reserve',
+							'creation', 'modified'
 						],
 						filters: filters,
-						order_by: 'posting_date desc',
+						order_by: 'posting_date desc, creation desc',
 						limit_page_length: 200
 					}
 				});
 
 				this.invoices = result.message || [];
+				
+				// Additional client-side sorting to ensure recent items are at top
+				this.invoices.sort((a, b) => {
+					// First sort by posting date (newest first)
+					const dateA = new Date(a.posting_date || a.creation);
+					const dateB = new Date(b.posting_date || b.creation);
+					if (dateB.getTime() !== dateA.getTime()) {
+						return dateB.getTime() - dateA.getTime();
+					}
+					// If same date, sort by creation time (newest first)
+					const timeA = new Date(a.creation);
+					const timeB = new Date(b.creation);
+					return timeB.getTime() - timeA.getTime();
+				});
 			} catch (error) {
 				console.error('Failed to load invoices:', error);
 				if (this.eventBus) {

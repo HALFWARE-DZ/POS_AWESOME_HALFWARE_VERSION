@@ -1526,70 +1526,25 @@ export default {
 		handleShowPayment(data) {
 			this.paymentVisible = data === "true";
 		},
+		updateItemMaxQty(data) {
+			// Update max_qty for items when stock availability changes
+			console.log("Updating stock availability for item:", data.item_code, "available:", data.available_qty, "reserved:", data.reserved_qty);
+			
+			this.items.forEach(item => {
+				if (item.item_code === data.item_code) {
+					item.max_qty = data.available_qty;
+					item.actual_qty = data.available_qty;
+					// Also store reservation info for display
+					item.reserved_qty = data.reserved_qty;
+					item.base_qty = data.base_qty;
+					console.log(`Updated ${item.item_code}: max_qty=${item.max_qty}, reserved=${item.reserved_qty}`);
+				}
+			});
+		},
 	},
 
 	mounted() {
 		// Load saved column preferences
-		this.loadColumnPreferences();
-		// Restore saved invoice height
-		this.loadInvoiceHeight();
-
-		this._busHandlers = {
-			"item-drag-start": this.handleItemDragStart,
-			"item-drag-end": this.handleItemDragEnd,
-			register_pos_profile: this.handleRegisterPosProfile,
-			add_item: this.add_item,
-			clear_invoice: this.handleClearInvoice,
-			load_invoice: this.handleLoadInvoice,
-			load_order: this.handleLoadOrder,
-			set_offers: this.handleSetOffers,
-			update_invoice_offers: this.handleUpdateInvoiceOffers,
-			update_invoice_coupons: this.handleUpdateInvoiceCoupons,
-			set_all_items: this.handleSetAllItems,
-			load_return_invoice: this.handleLoadReturnInvoice,
-			set_new_line: this.handleSetNewLine,
-			reset_posting_date: this.handleResetPostingDate,
-			calc_uom: this.calc_uom,
-			show_payment: this.handleShowPayment,
-		};
-
-		Object.entries(this._busHandlers).forEach(([eventName, handler]) => {
-			this.eventBus.on(eventName, handler);
-		});
-
-		this.stockUnsubscribe = stockCoordinator.subscribe(this.handleStockCoordinatorUpdate);
-
-		if (this.pos_profile.posa_allow_multi_currency) {
-			this.fetch_available_currencies();
-		}
-
-		this.emitCartQuantities();
-		this.$nextTick(() => {
-			this.primeInvoiceStockState();
-		});
-	},
-	// Cleanup event listeners before component is destroyed
-	beforeUnmount() {
-		if (typeof this.stockUnsubscribe === "function") {
-			this.stockUnsubscribe();
-			this.stockUnsubscribe = null;
-		}
-
-		Object.entries(this._busHandlers || {}).forEach(([eventName, handler]) => {
-			this.eventBus.off(eventName, handler);
-		});
-		this._busHandlers = {};
-		if (typeof this.cancelScheduledOfferRefresh === "function") {
-			this.cancelScheduledOfferRefresh();
-		}
-		if (this._suppressClosePaymentsTimer) {
-			clearTimeout(this._suppressClosePaymentsTimer);
-			this._suppressClosePaymentsTimer = null;
-		}
-	},
-	// Register global keyboard shortcuts when component is created
-	created() {
-		this.invoiceStore.clear();
 		this.$watch(
 			() => this.selectedCustomer,
 			(newCustomer) => {
@@ -1603,6 +1558,7 @@ export default {
 			},
 			{ immediate: true },
 		);
+		this._shortcutHandlers = this._shortcutHandlers || {};
 		this.$watch(
 			() => this.customerRefreshToken,
 			() => {
@@ -1625,6 +1581,11 @@ export default {
 		document.removeEventListener("keydown", this._shortcutHandlers.handleInvoiceShortcut);
 
 		this._shortcutHandlers = {};
+		
+		// Unsubscribe from stock coordinator
+		if (this.stockUnsubscribe) {
+			this.stockUnsubscribe();
+		}
 	},
 	watch: invoiceWatchers,
 };

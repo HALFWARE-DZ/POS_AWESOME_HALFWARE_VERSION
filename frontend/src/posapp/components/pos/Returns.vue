@@ -653,10 +653,17 @@ export default {
 					: [];
 
 				// Make sure grand_total is negative for returns
-				if (return_doc.grand_total > 0) {
-					invoice_doc.grand_total = return_doc.grand_total * -1;
+				// For reservations, use original amount + paid amount, not just remaining balance
+				let originalAmount = return_doc.grand_total;
+				if (return_doc.posa_reservation_amount && return_doc.posa_reservation_amount > 0) {
+					// This is a reservation return, calculate full original amount
+					originalAmount = Math.abs(return_doc.grand_total) + return_doc.posa_reservation_amount;
+				}
+				
+				if (originalAmount > 0) {
+					invoice_doc.grand_total = originalAmount * -1;
 				} else {
-					invoice_doc.grand_total = return_doc.grand_total;
+					invoice_doc.grand_total = originalAmount;
 				}
 
 				// These fields ensure proper return handling
