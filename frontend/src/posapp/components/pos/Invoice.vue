@@ -1544,6 +1544,44 @@ export default {
 	},
 
 	mounted() {
+		this.loadColumnPreferences();
+		// Restore saved invoice height
+		this.loadInvoiceHeight();
+
+		this._busHandlers = {
+			"item-drag-start": this.handleItemDragStart,
+			"item-drag-end": this.handleItemDragEnd,
+			register_pos_profile: this.handleRegisterPosProfile,
+			add_item: this.add_item,
+			clear_invoice: this.handleClearInvoice,
+			load_invoice: this.handleLoadInvoice,
+			load_order: this.handleLoadOrder,
+			set_offers: this.handleSetOffers,
+			update_invoice_offers: this.handleUpdateInvoiceOffers,
+			update_invoice_coupons: this.handleUpdateInvoiceCoupons,
+			set_all_items: this.handleSetAllItems,
+			load_return_invoice: this.handleLoadReturnInvoice,
+			set_new_line: this.handleSetNewLine,
+			reset_posting_date: this.handleResetPostingDate,
+			calc_uom: this.calc_uom,
+			show_payment: this.handleShowPayment,
+		};
+
+		Object.entries(this._busHandlers).forEach(([eventName, handler]) => {
+			this.eventBus.on(eventName, handler);
+		});
+
+		this.stockUnsubscribe = stockCoordinator.subscribe(this.handleStockCoordinatorUpdate);
+
+		if (this.pos_profile.posa_allow_multi_currency) {
+			this.fetch_available_currencies();
+		}
+
+		this.emitCartQuantities();
+		this.$nextTick(() => {
+			this.primeInvoiceStockState();
+		});
+		
 		// Load saved column preferences
 		this.$watch(
 			() => this.selectedCustomer,
@@ -1581,6 +1619,12 @@ export default {
 		document.removeEventListener("keydown", this._shortcutHandlers.handleInvoiceShortcut);
 
 		this._shortcutHandlers = {};
+		
+		// Clean up event listeners
+		Object.entries(this._busHandlers || {}).forEach(([eventName, handler]) => {
+			this.eventBus.off(eventName, handler);
+		});
+		this._busHandlers = {};
 		
 		// Unsubscribe from stock coordinator
 		if (this.stockUnsubscribe) {
