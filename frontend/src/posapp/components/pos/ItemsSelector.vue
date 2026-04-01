@@ -419,19 +419,40 @@
 													<v-icon size="small" class="stock-icon">
 														mdi-package-variant
 													</v-icon>
-													<span
-														class="stock-amount"
-														:class="{
-															'negative-number': isNegative(item.actual_qty),
-														}"
-													>
-														{{
-															memoizedFormatNumber(
-																item.actual_qty,
-																hide_qty_decimals ? 0 : 4,
-															) || 0
-														}}
-													</span>
+													<div class="stock-quantities">
+														<span class="available-qty">
+															Available: {{ memoizedFormatNumber(getReservedStockForItem(item).available_qty, 0) || 0 }}
+														</span>
+														<span v-if="hasReservedStock(item)" class="reserved-qty">
+															and 
+															<span 
+																class="reserved-number"
+																@click.stop
+															>
+																Reserved: {{ memoizedFormatNumber(getReservedStockForItem(item).reserved_qty, 0) || 0 }}
+															</span>
+															<v-tooltip activator="parent" location="top">
+																<div v-if="getLatestInvoiceDetails(item)">
+																	<div class="mb-2">
+																		<strong>Bon de caisse:</strong> {{ getLatestInvoiceDetails(item).invoice }}
+																	</div>
+																	<div v-if="getLatestInvoiceDetails(item).customer" class="mb-1">
+																		<strong>Client:</strong> {{ getLatestInvoiceDetails(item).customer }}
+																	</div>
+																	<div v-if="getLatestInvoiceDetails(item).due_date" class="mb-1">
+																		<strong>Date d’échéance:</strong> {{ formatDate(getLatestInvoiceDetails(item).due_date) }}
+																	</div>
+																	<div v-if="getAllReservedInvoicesText(item) !== getReservedInvoicesText(item)" class="mt-2 pt-2 border-top">
+																		<strong>All Reserved Invoices:</strong><br>
+																		<small>{{ getAllReservedInvoicesText(item) }}</small>
+																	</div>
+																</div>
+																<div v-else>
+																	No invoice details available
+																</div>
+															</v-tooltip>
+														</span>
+													</div>
 													<span class="stock-uom">{{ item.stock_uom || "" }}</span>
 												</div>
 											</div>
@@ -521,13 +542,43 @@
 									</div>
 								</template>
 								<template v-slot:item.actual_qty="{ item }">
-									<span
-										class="golden--text"
-										:class="{ 'negative-number': isNegative(item.actual_qty) }"
-										>{{
-											memoizedFormatNumber(item.actual_qty, hide_qty_decimals ? 0 : 4)
-										}}</span
-									>
+									<div class="table-stock-display">
+										<span class="golden--text available-qty">
+											Available: {{ memoizedFormatNumber(getReservedStockForItem(item).available_qty, 0) }}
+										</span>
+										<span v-if="hasReservedStock(item)" class="reserved-qty">
+											and 
+											<span 
+												class="reserved-number blue--text"
+												@click.stop
+											>
+												Reserved: {{ memoizedFormatNumber(getReservedStockForItem(item).reserved_qty, 0) }}
+											</span>
+											<v-tooltip activator="parent" location="top">
+												<div v-if="getLatestInvoiceDetails(item)">
+													<div class="mb-2">
+														<strong>Sales Invoice:</strong> {{ getLatestInvoiceDetails(item).invoice }}
+													</div>
+													<div v-if="getLatestInvoiceDetails(item).customer" class="mb-1">
+														<strong>Client:</strong> {{ getLatestInvoiceDetails(item).customer }}
+													</div>
+													<div v-if="getLatestInvoiceDetails(item).due_date" class="mb-1">
+														<strong>Due Date:</strong> {{ formatDate(getLatestInvoiceDetails(item).due_date) }}
+													</div>
+													<div v-if="getLatestInvoiceDetails(item).invoice_date" class="mb-1">
+														<strong>Invoice Date:</strong> {{ formatDate(getLatestInvoiceDetails(item).invoice_date) }}
+													</div>
+													<div v-if="getAllReservedInvoicesText(item) !== getReservedInvoicesText(item)" class="mt-2 pt-2 border-top">
+														<strong>All Reserved Invoices:</strong><br>
+														<small>{{ getAllReservedInvoicesText(item) }}</small>
+													</div>
+												</div>
+												<div v-else>
+													No invoice details available
+												</div>
+											</v-tooltip>
+										</span>
+									</div>
 								</template>
 							</v-data-table-virtual>
 						</div>
@@ -804,6 +855,10 @@ export default {
 		lastInvoiceRates: {},
 		lastInvoiceRateScheduler: null,
 		lastInvoiceRateLoading: false,
+		// Reserved stock data
+		reservedStockData: {},
+		reservedStockLoading: false,
+		reservedStockTimer: null,
 	}),
 
 	watch: {
@@ -1001,6 +1056,13 @@ export default {
 			if (val) {
 				this.eventBus.emit("itemsLoaded");
 				this.eventBus.emit("data-loaded", "items");
+				// Refresh reserved stock data when items are loaded
+				// Use a longer delay to ensure items are properly displayed
+				this.$nextTick(() => {
+					setTimeout(() => {
+						this.refreshReservedStockData();
+					}, 200);
+				});
 			}
 		},
 		items_view() {
@@ -1016,6 +1078,187 @@ export default {
 	},
 
 	methods: {
+		// Reserved stock methods
+		async getReservedStockInfo(itemCode, warehouse) {
+			if (!itemCode || !warehouse) return null;
+			
+			const cacheKey = `${itemCode},${warehouse}`;
+			if (this.reservedStockData[cacheKey]) {
+				return this.reservedStockData[cacheKey];
+			}
+
+			try {
+				const result = await frappe.call({
+					method: 'posawesome.posawesome.api.reserved_stock.get_reserved_stock_info',
+					args: {
+						item_code: itemCode,
+						warehouse: warehouse
+					}
+				});
+
+				if (result.message) {
+					this.reservedStockData[cacheKey] = result.message;
+					return result.message;
+				}
+			} catch (error) {
+				console.error('Failed to fetch reserved stock info:', error);
+			}
+
+			return {
+				available_qty: 0,
+				reserved_qty: 0,
+				reserved_invoices: []
+			};
+		},
+		async refreshReservedStockData() {
+			if (!this.displayedItems || !this.displayedItems.length || !this.pos_profile?.warehouse) {
+				console.log('DEBUG: refreshReservedStockData - missing data', {
+					hasDisplayedItems: !!this.displayedItems,
+					displayedItemsLength: this.displayedItems?.length,
+					hasWarehouse: !!this.pos_profile?.warehouse,
+					warehouse: this.pos_profile?.warehouse
+				});
+				return;
+			}
+
+			console.log('DEBUG: refreshReservedStockData - starting refresh', {
+				itemsCount: this.displayedItems.length,
+				warehouse: this.pos_profile.warehouse,
+				firstFewItems: this.displayedItems.slice(0, 3).map(item => item.item_code)
+			});
+
+			this.reservedStockLoading = true;
+
+			try {
+				const itemsData = this.displayedItems.map(item => ({
+					item_code: item.item_code,
+					warehouse: this.pos_profile.warehouse
+				}));
+
+				console.log('DEBUG: refreshReservedStockData - calling API with itemsData', itemsData.slice(0, 3)); // Show first 3 items
+
+				const result = await frappe.call({
+					method: 'posawesome.posawesome.api.reserved_stock.get_bulk_reserved_stock_info',
+					args: {
+						items_data: JSON.stringify(itemsData)
+					}
+				});
+
+				console.log('DEBUG: refreshReservedStockData - API result', result);
+
+				if (result.message) {
+					this.reservedStockData = result.message;
+					console.log('DEBUG: refreshReservedStockData - updated reservedStockData', this.reservedStockData);
+					
+					// Verify the data matches displayed items
+					const firstItem = this.displayedItems[0];
+					if (firstItem) {
+						const cacheKey = `${firstItem.item_code},${this.pos_profile.warehouse}`;
+						const reservedData = this.reservedStockData[cacheKey];
+						console.log('DEBUG: First displayed item:', firstItem.item_code);
+						console.log('DEBUG: Reserved data key:', cacheKey);
+						console.log('DEBUG: Reserved data exists:', !!reservedData);
+						console.log('DEBUG: Reserved data:', reservedData);
+					}
+				}
+			} catch (error) {
+				console.error('DEBUG: refreshReservedStockData - error:', error);
+			} finally {
+				this.reservedStockLoading = false;
+			}
+		},
+		startReservedStockAutoRefresh() {
+			// Clear existing timer
+			if (this.reservedStockTimer) {
+				clearInterval(this.reservedStockTimer);
+			}
+
+			// Auto-refresh every 5 seconds
+			this.reservedStockTimer = setInterval(() => {
+				this.refreshReservedStockData();
+			}, 5000);
+		},
+		stopReservedStockAutoRefresh() {
+			if (this.reservedStockTimer) {
+				clearInterval(this.reservedStockTimer);
+				this.reservedStockTimer = null;
+			}
+		},
+		getReservedStockForItem(item) {
+			if (!item || !item.item_code || !this.pos_profile?.warehouse) {
+				return {
+					available_qty: 0,
+					reserved_qty: 0,
+					reserved_invoices: []
+				};
+			}
+
+			const cacheKey = `${item.item_code},${this.pos_profile.warehouse}`;
+			return this.reservedStockData[cacheKey] || {
+				available_qty: 0,
+				reserved_qty: 0,
+				reserved_invoices: []
+			};
+		},
+		hasReservedStock(item) {
+			const reservedData = this.getReservedStockForItem(item);
+			return reservedData.reserved_qty > 0;
+		},
+		getReservedInvoicesText(item) {
+			const reservedData = this.getReservedStockForItem(item);
+			console.log('DEBUG: getReservedInvoicesText for item', item.item_code, reservedData);
+			
+			if (!reservedData.reserved_invoices || reservedData.reserved_invoices.length === 0) {
+				console.log('DEBUG: No reserved invoices found for item', item.item_code);
+				return '';
+			}
+			// Return only the latest (first) invoice since they're sorted by date
+			const latestInvoice = reservedData.reserved_invoices[0];
+			console.log('DEBUG: Latest invoice for item', item.item_code, latestInvoice);
+			
+			// Format the display text
+			if (typeof latestInvoice === 'object' && latestInvoice.invoice) {
+				return latestInvoice.invoice;
+			} else if (typeof latestInvoice === 'string') {
+				return latestInvoice;
+			}
+			return '';
+		},
+		getLatestInvoiceDetails(item) {
+			const reservedData = this.getReservedStockForItem(item);
+			if (!reservedData.reserved_invoices || reservedData.reserved_invoices.length === 0) {
+				return null;
+			}
+			
+			const latestInvoice = reservedData.reserved_invoices[0];
+			// Handle both old format (string) and new format (object)
+			if (typeof latestInvoice === 'object' && latestInvoice.invoice) {
+				return latestInvoice;
+			}
+			return null;
+		},
+		getAllReservedInvoicesText(item) {
+			const reservedData = this.getReservedStockForItem(item);
+			if (!reservedData.reserved_invoices || reservedData.reserved_invoices.length === 0) {
+				return '';
+			}
+			
+			// Handle both old format (array of strings) and new format (array of objects)
+			return reservedData.reserved_invoices.map(inv => {
+				if (typeof inv === 'object' && inv.invoice) {
+					return inv.invoice;
+				}
+				return inv;
+			}).join(', ');
+		},
+		formatDate(dateString) {
+			if (!dateString) return '';
+			try {
+				return new Date(dateString).toLocaleDateString();
+			} catch (e) {
+				return dateString;
+			}
+		},
 		normalizeScaleBarcodeSettings(rawSettings = {}) {
 			const settings = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
 			const prefix = String(settings.prefix || "").trim();
@@ -1780,6 +2023,10 @@ export default {
 			try {
 				await this.refreshItems();
 				frappe.show_alert({ message: __("Items reloaded from server"), indicator: "green" });
+				// Refresh reserved stock data after items are reloaded
+				setTimeout(() => {
+					this.refreshReservedStockData();
+				}, 300);
 			} catch (error) {
 				console.error("Failed to reload items:", error);
 				frappe.msgprint(__("Failed to reload items"));
@@ -2645,6 +2892,11 @@ export default {
 				console.error("Failed to refresh item details after invoice submission", error);
 			} finally {
 				this.recomputeAvailabilityForCodes(codes);
+				// Also refresh reserved stock data when stock is adjusted
+				console.log("DEBUG: Stock adjusted - refreshing reserved stock data");
+				setTimeout(() => {
+					this.refreshReservedStockData();
+				}, 300);
 			}
 		},
 		async update_items_details(items, options = {}) {
@@ -4716,7 +4968,7 @@ export default {
 			return this.customer_price_list || (this.pos_profile && this.pos_profile.selling_price_list);
 		},
 		isLoadingOrSyncing() {
-			return this.loading || this.isBackgroundLoading || this.refreshInFlight;
+			return this.loading || this.isBackgroundLoading || this.refreshInFlight
 		},
 	},
 
@@ -4805,6 +5057,35 @@ export default {
 		});
 		this.eventBus.on("update_cur_items_details", () => {
 			this.update_cur_items_details();
+		});
+		// Auto-refresh reserved stock after invoice submission
+		this.eventBus.on("invoice_submitted", () => {
+			console.log("DEBUG: Invoice submitted event - refreshing reserved stock");
+			setTimeout(() => {
+				this.refreshReservedStockData();
+			}, 500); // Give some time for stock entries to be created
+		});
+		// Also listen for other possible events
+		this.eventBus.on("payment_submitted", () => {
+			console.log("DEBUG: Payment submitted event - refreshing reserved stock");
+			setTimeout(() => {
+				this.refreshReservedStockData();
+			}, 500);
+		});
+		this.eventBus.on("invoice_updated", () => {
+			console.log("DEBUG: Invoice updated event - refreshing reserved stock");
+			setTimeout(() => {
+				this.refreshReservedStockData();
+			}, 500);
+		});
+		this.eventBus.on("cart_updated", () => {
+			console.log("DEBUG: Cart updated event - checking if we should refresh");
+			// Only refresh if we're not in the middle of something
+			if (!this.reservedStockLoading) {
+				setTimeout(() => {
+					this.refreshReservedStockData();
+				}, 200);
+			}
 		});
 		this.eventBus.on("update_offers_counters", (data) => {
 			this.offersCount = data.offersCount;
@@ -4925,11 +5206,18 @@ export default {
 			this.checkItemContainerOverflow();
 			this.scheduleCardMetricsUpdate();
 		});
+
+		// Initialize reserved stock data and auto-refresh
+		if (this.pos_profile && this.pos_profile.warehouse) {
+			this.refreshReservedStockData();
+			this.startReservedStockAutoRefresh();
+		}
 	},
 
 	beforeUnmount() {
 		// Clear interval when component is destroyed
 		this.stopBackgroundSyncScheduler();
+		this.stopReservedStockAutoRefresh();
 
 		if (this.formatCache) {
 			this.formatCache.clear();
@@ -4982,6 +5270,10 @@ export default {
 		this.eventBus.off("server-online");
 		this.eventBus.off("register_pos_profile");
 		this.eventBus.off("update_cur_items_details");
+		this.eventBus.off("invoice_submitted");
+		this.eventBus.off("payment_submitted");
+		this.eventBus.off("invoice_updated");
+		this.eventBus.off("cart_updated");
 		this.eventBus.off("update_offers_counters");
 		this.eventBus.off("update_coupons_counters");
 		this.eventBus.off("cart_quantities_updated", this.handleCartQuantitiesUpdated);
@@ -5861,5 +6153,50 @@ export default {
 		animation: none !important;
 		transform: none !important;
 	}
+}
+
+/* Reserved Stock Styles */
+.stock-quantities {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.available-qty {
+	font-size: 0.85rem;
+	font-weight: 500;
+}
+
+.reserved-qty {
+	font-size: 0.8rem;
+}
+
+.reserved-number {
+	color: #1976d2 !important;
+	cursor: pointer;
+	text-decoration: underline;
+	text-decoration-style: dotted;
+}
+
+.reserved-number:hover {
+	text-decoration-style: solid;
+}
+
+.table-stock-display {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.table-stock-display .available-qty {
+	font-size: 0.9rem;
+}
+
+.table-stock-display .reserved-qty {
+	font-size: 0.85rem;
+}
+
+:deep(.v-theme--dark) .reserved-number {
+	color: #64b5f6 !important;
 }
 </style>

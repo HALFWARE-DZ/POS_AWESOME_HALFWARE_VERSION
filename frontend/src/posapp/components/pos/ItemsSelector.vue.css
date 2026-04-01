@@ -860,3 +860,48 @@
 		transform: none !important;
 	}
 }
+
+/* Reserved Stock Styles */
+.stock-quantities {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.available-qty {
+	font-size: 0.85rem;
+	font-weight: 500;
+}
+
+.reserved-qty {
+	font-size: 0.8rem;
+}
+
+.reserved-number {
+	color: #1976d2 !important;
+	cursor: pointer;
+	text-decoration: underline;
+	text-decoration-style: dotted;
+}
+
+.reserved-number:hover {
+	text-decoration-style: solid;
+}
+
+.table-stock-display {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.table-stock-display .available-qty {
+	font-size: 0.9rem;
+}
+
+.table-stock-display .reserved-qty {
+	font-size: 0.85rem;
+}
+
+:deep(.v-theme--dark) .reserved-number {
+	color: #64b5f6 !important;
+}
