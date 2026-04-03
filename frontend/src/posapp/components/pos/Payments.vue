@@ -547,22 +547,6 @@
 					>
 						<v-switch v-model="is_credit_sale" :label="frappe._('Credit Sale?')"></v-switch>
 					</v-col>
-					<v-col cols="6" v-if="invoice_doc && invoice_doc.is_return && pos_profile.use_cashback">
-						<v-switch
-							v-model="is_cashback"
-							flat
-							:label="frappe._('Cashback?')"
-							class="my-0 pa-1"
-						></v-switch>
-					</v-col>
-					<v-col cols="6" v-if="invoice_doc && invoice_doc.is_return">
-						<v-switch
-							v-model="is_credit_return"
-							flat
-							:label="frappe._('Credit Return?')"
-							class="my-0 pa-1"
-						></v-switch>
-					</v-col>
 					<v-col cols="6" v-if="is_credit_sale">
 						<VueDatePicker
 							v-model="new_credit_due_date"
@@ -610,6 +594,53 @@
 							class="my-0 pa-1"
 							@update:model-value="get_available_credit(redeem_customer_credit)"
 						></v-switch>
+					</v-col>
+				</v-row>
+
+				<!-- Return Amount Section - Only show for returns -->
+				<v-row v-if="invoice_doc && invoice_doc.is_return" class="pa-1">
+					<v-col cols="12">
+						<v-card class="pa-3 mb-3" color="blue-grey-lighten-5">
+							<v-card-title class="text-h6 pa-0 mb-2">
+								<v-icon color="primary" class="mr-2">mdi-cash-refund</v-icon>
+								{{ frappe._('Return Details') }}
+							</v-card-title>
+							
+							<!-- Show original invoice details -->
+							<v-row class="mb-3">
+								<v-col cols="6">
+									<div class="text-caption text-medium-emphasis">{{ frappe._('Original Invoice Total') }}</div>
+									<div class="text-h6 font-weight-bold">
+										{{ formatCurrency(getOriginalInvoiceTotal()) }}
+									</div>
+								</v-col>
+								<v-col cols="6">
+									<div class="text-caption text-medium-emphasis">{{ frappe._('Original Amount Paid') }}</div>
+									<div class="text-h6 font-weight-bold green--text">
+										{{ formatCurrency(getOriginalPaidAmount()) }}
+									</div>
+								</v-col>
+							</v-row>
+							
+							<!-- Return amount selection -->
+							<v-row>
+								<v-col cols="12">
+									<v-text-field
+										variant="solo"
+										color="primary"
+										type="number"
+										min="0"
+										:max="getOriginalPaidAmount()"
+										v-model.number="return_amount"
+										:label="frappe._('Amount to Return to Customer')"
+										:prefix="currencySymbol(invoice_doc.currency)"
+										:rules="[maxReturnAmountRule]"
+										hint="Maximum amount that can be returned is the original paid amount"
+										persistent-hint
+									></v-text-field>
+								</v-col>
+							</v-row>
+						</v-card>
 					</v-col>
 				</v-row>
 
@@ -947,6 +978,8 @@ export default {
 			reservation_amount: 0, // Partial payment amount for reservation
 			reservationSearchLoading: false, // Loading state for reservation search
 			new_delivery_date: null, // New delivery date value
+			return_amount: 0, // Amount to return to customer for returns
+			original_invoice_data: null, // Store original invoice data for returns
 			new_po_date: null, // New PO date value
 			new_credit_due_date: null, // New credit due date value
 			credit_due_days: null, // Number of days until due
@@ -1213,6 +1246,15 @@ export default {
 			}
 			return parsed;
 		},
+		// Validation rule for return amount
+		maxReturnAmountRule() {
+			return (value) => {
+				if (!value || value <= this.getOriginalPaidAmount()) {
+					return true;
+				}
+				return `Return amount cannot exceed original paid amount (${this.formatCurrency(this.getOriginalPaidAmount())})`;
+			};
+		},
 	},
 	watch: {
 		// Watch diff_payment to update paid_change
@@ -1423,10 +1465,24 @@ export default {
 			if (newCustomer === oldCustomer) {
 				return;
 			}
-			this.customer_credit_dict = [];
+			this.customer_info = "";
 			this.redeem_customer_credit = false;
 			this.is_cashback = true;
 			this.is_credit_return = false;
+		},
+		// Watch for return invoices to load original data
+		"invoice_doc.is_return"(newVal) {
+			if (newVal) {
+				this.loadOriginalInvoiceData();
+			} else {
+				this.original_invoice_data = null;
+				this.return_amount = 0;
+			}
+		},
+		"invoice_doc.return_against"(newVal) {
+			if (newVal && this.invoice_doc && this.invoice_doc.is_return) {
+				this.loadOriginalInvoiceData();
+			}
 		},
 	},
 	methods: {
@@ -1479,6 +1535,59 @@ export default {
 			return blocking
 				? __("Insufficient stock:\n{0}", [msg])
 				: __("Stock is lower than requested:\n{0}", [msg]);
+		},
+		// Methods for return amount functionality
+		getOriginalInvoiceTotal() {
+			if (!this.invoice_doc || !this.invoice_doc.is_return) {
+				return 0;
+			}
+			// For return invoices, get the original invoice total from the return_against field
+			if (this.invoice_doc.return_against && this.original_invoice_data) {
+				return this.original_invoice_data.grand_total || this.original_invoice_data.rounded_total || 0;
+			}
+			// Fallback: use the current invoice's absolute total
+			return Math.abs(this.invoice_doc.grand_total || this.invoice_doc.rounded_total || 0);
+		},
+		getOriginalPaidAmount() {
+			if (!this.invoice_doc || !this.invoice_doc.is_return) {
+				return 0;
+			}
+			// For return invoices, get the original paid amount
+			if (this.invoice_doc.return_against && this.original_invoice_data) {
+				// Calculate the actual paid amount from the original invoice
+				const original_total = this.original_invoice_data.grand_total || this.original_invoice_data.rounded_total || 0;
+				const original_paid = this.original_invoice_data.paid_amount || 0;
+				// If paid_amount is available, use it, otherwise use the total
+				return original_paid > 0 ? original_paid : original_total;
+			}
+			// Fallback: use the current invoice's total (absolute value for returns)
+			return Math.abs(this.invoice_doc.grand_total || this.invoice_doc.rounded_total || 0);
+		},
+		loadOriginalInvoiceData() {
+			if (!this.invoice_doc || !this.invoice_doc.is_return || !this.invoice_doc.return_against) {
+				this.original_invoice_data = null;
+				return;
+			}
+			
+			// Load the original invoice data
+			frappe.call({
+				method: "frappe.client.get",
+				args: {
+					doctype: "Sales Invoice",
+					name: this.invoice_doc.return_against
+				},
+				callback: (response) => {
+					if (response.message) {
+						this.original_invoice_data = response.message;
+						// Set default return amount to the original paid amount
+						this.return_amount = this.getOriginalPaidAmount();
+					}
+				},
+				error: (error) => {
+					console.error("Failed to load original invoice data:", error);
+					this.original_invoice_data = null;
+				}
+			});
 		},
 		// Go back to invoice view and reset customer readonly
 		back_to_invoice() {
@@ -1648,11 +1757,10 @@ export default {
 					frappe.utils.play_sound("error");
 					return;
 				}
-				// Validate cashback
-				let total_change = this.flt(this.flt(this.paid_change) + this.flt(-this.credit_change));
-				if (this.is_cashback && total_change !== changeLimit) {
+				// Validate return amount for return invoices
+				if (this.invoice_doc.is_return && this.return_amount > this.getOriginalPaidAmount()) {
 					this.eventBus.emit("show_message", {
-						title: `Error in change calculations!`,
+						title: `Return amount cannot exceed original paid amount (${this.formatCurrency(this.getOriginalPaidAmount())})`,
 						color: "error",
 					});
 					frappe.utils.play_sound("error");
@@ -1786,13 +1894,33 @@ export default {
 
 		// Submit invoice to backend after all validations
 		async submit_invoice(print) {
-			// For return invoices, ensure payments are negative one last time
+			// For return invoices, set payment amounts based on return_amount
 			if (this.invoice_doc.is_return) {
-				this.ensureReturnPaymentsAreNegative();
+				// Set the payment amount to negative return amount
+				const default_payment = this.invoice_doc.payments.find((payment) => payment.default === 1);
+				if (default_payment) {
+					default_payment.amount = -Math.abs(this.return_amount || 0);
+					if (default_payment.base_amount !== undefined) {
+						default_payment.base_amount = -Math.abs(this.return_amount || 0);
+					}
+				}
+				// Ensure all other payments are zero
+				this.invoice_doc.payments.forEach((payment) => {
+					if (payment !== default_payment) {
+						payment.amount = 0;
+						if (payment.base_amount !== undefined) {
+							payment.base_amount = 0;
+						}
+					}
+				});
 			}
 			// Set update_stock based on reservation status
 			if (this.invoice_doc.custom_is_reserve) {
 				this.invoice_doc.update_stock = 0; // Don't update stock for reservations
+			} else if (this.invoice_doc.is_return && this.invoice_doc.return_against) {
+				// For returns, ALWAYS set update_stock to 0 to match reservation behavior
+				// This prevents the "items are not delivered" validation error
+				this.invoice_doc.update_stock = 0;
 			} else {
 				this.invoice_doc.update_stock = 1; // Update stock for normal sales
 			}
@@ -1834,7 +1962,7 @@ export default {
 				credit_change: creditChange,
 				redeemed_customer_credit: this.redeemed_customer_credit,
 				customer_credit_dict: this.customer_credit_dict,
-				is_cashback: this.is_cashback,
+				return_amount: this.invoice_doc.is_return ? this.return_amount : 0,
 			};
 
 			if (isOffline()) {

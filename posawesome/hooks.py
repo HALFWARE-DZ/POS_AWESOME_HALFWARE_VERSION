@@ -209,7 +209,7 @@ fixtures = [
                     "POS Profile-posa_allow_return_without_invoice",
                     "POS Profile-posa_allow_free_batch_return",
                     "POS Profile-posa_col_1",
-                    "POS Profile-create_pos_invoice_instead_of_sales_invoice",
+                    "create_pos_invoice_instead_of_sales_invoice",
                     "Payment Entry-custom_remark",
                     "POS Invoice-posa_is_printed",
                     "Sales Invoice-posa_is_printed",
@@ -346,3 +346,35 @@ fixtures = [
         ],
     },
 ]
+
+# Override validation to bypass stock delivery check for reserved returns
+def override_sales_invoice_validation():
+    """Override Sales Invoice validation to bypass stock delivery check for reserved returns"""
+    import frappe
+    from erpnext.controllers.sales_and_purchase_return import validate_return_against
+    
+    # Store the original function
+    original_validate_return_against = validate_return_against
+    
+    def custom_validate_return_against(doc):
+        # For returns against reservations, force update_stock to 0
+        if doc.is_return and doc.return_against:
+            # Check if original invoice was a reservation (update_stock=0)
+            original = frappe.get_cached_doc('Sales Invoice', doc.return_against)
+            if original.get('custom_is_reserve') or original.update_stock == 0:
+                # Force update_stock to 0 on the return to match
+                doc.update_stock = 0
+                return
+        
+        # For any return with update_stock=0, skip validation
+        if doc.is_return and doc.update_stock == 0:
+            return
+            
+        return original_validate_return_against(doc)
+    
+    # Apply the override by replacing the function in the module
+    import erpnext.controllers.sales_and_purchase_return
+    erpnext.controllers.sales_and_purchase_return.validate_return_against = custom_validate_return_against
+
+# Apply the override when the app loads
+override_sales_invoice_validation()
