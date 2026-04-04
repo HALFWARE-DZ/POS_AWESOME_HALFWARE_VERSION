@@ -1165,6 +1165,62 @@ export default {
 
 				let selectedInvoices = this.selected_invoices.map((invoice) => ({ ...invoice }));
 
+				// Debug: Check all selected invoices
+				console.log("All selected invoices:", selectedInvoices);
+				console.log("Selected invoices with custom_is_reserve:", selectedInvoices.filter(inv => inv.custom_is_reserve));
+
+				// Check if any selected invoice is a reservation and handle stock transfer
+				const reservationInvoices = selectedInvoices.filter(invoice => invoice.custom_is_reserve);
+				if (reservationInvoices.length > 0) {
+					console.log("Found reservation invoices:", reservationInvoices);
+					try {
+						// Process each reservation to complete it
+						for (const reservation of reservationInvoices) {
+							console.log("Processing reservation:", reservation.voucher_no, "outstanding:", reservation.outstanding_amount);
+							
+							// Get payment methods data from the form
+							const paymentsData = this.filtered_payment_methods.map(payment => ({
+								mode_of_payment: payment.mode_of_payment,
+								amount: payment.amount
+							}));
+							
+							const result = await frappe.call({
+								method: "posawesome.posawesome.api.reservations.complete_reservation",
+								args: {
+									reservation_invoice_name: reservation.voucher_no,
+									payments_data: paymentsData
+								}
+							});
+							
+							console.log("Reservation completion result:", result);
+							if (result.message && result.message.status === 'success') {
+								console.log(`Reservation ${reservation.voucher_no} completed:`, result.message.message);
+								// Update the invoice in selectedInvoices array
+								reservation.custom_reservation_status = "Completed";
+								// Also update the original invoice in the selected_invoices array
+								const originalInvoice = this.selected_invoices.find(inv => inv.voucher_no === reservation.voucher_no);
+								if (originalInvoice) {
+									originalInvoice.custom_reservation_status = "Completed";
+								}
+								frappe.show_alert({ 
+									message: `Reservation ${reservation.voucher_no} completed successfully!`,
+									indicator: 'green'
+								});
+							}
+						}
+					} catch (error) {
+						console.error("Failed to complete reservation:", error);
+						frappe.msgprint({
+							title: "Reservation Completion Failed",
+							message: `Failed to complete reservation: ${error.message || error}`,
+							indicator: 'red'
+						});
+						// Continue with normal payment processing even if reservation completion fails
+					}
+				} else {
+					console.log("No reservation invoices found in selection");
+				}
+
 				if (hasNewPayments && selectedInvoices.length === 0) {
 					selectedInvoices = this.outstanding_invoices
 						.filter((invoice) => flt(invoice?.outstanding_amount) > 0)

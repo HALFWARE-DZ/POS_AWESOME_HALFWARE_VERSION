@@ -545,7 +545,7 @@
 						cols="6"
 						v-if="invoice_doc && pos_profile.posa_allow_credit_sale && !invoice_doc.is_return"
 					>
-						<v-switch v-model="is_credit_sale" :label="frappe._('Credit Sale?')"></v-switch>
+						<v-switch v-model="is_credit_sale" :label="frappe._('Reserve ?')"></v-switch>
 					</v-col>
 					<v-col cols="6" v-if="is_credit_sale">
 						<VueDatePicker
