@@ -328,13 +328,17 @@
 							density="compact"
 							variant="solo"
 							color="primary"
-							:label="frappe._('Grand Total')"
+							:label="frappe._('Grand Total (Editable)')"
 							class="sleek-field pos-themed-input"
 							hide-details
-							:model-value="formatCurrency(invoice_doc.grand_total)"
-							readonly
+							v-model="editable_grand_total"
 							:prefix="currencySymbol(invoice_doc.currency)"
 							persistent-placeholder
+							@blur="updateGrandTotal"
+							@keyup.enter="updateGrandTotal"
+							type="number"
+							:hint="frappe._('Type desired total to auto-calculate discount')"
+							persistent-hint
 						></v-text-field>
 					</v-col>
 					<v-col v-if="invoice_doc && invoice_doc.rounded_total" cols="6">
@@ -995,6 +999,8 @@ export default {
 			is_user_editing_paid_change: false, // User interaction flag
 			highlightSubmit: false, // Highlight state for submit button
 			last_payment_change_was_cash: null, // Track last edited payment type
+			editable_grand_total: 0, // Editable grand total for direct entry
+			is_user_editing_total: false, // Flag to prevent circular updates
 			backgroundStatusCheck: null,
 			paymentVisible: false,
 			_shortcutHandlers: {},
@@ -1484,6 +1490,12 @@ export default {
 				this.loadOriginalInvoiceData();
 			}
 		},
+		"invoice_doc.grand_total"(newVal) {
+			// Update editable_grand_total when invoice total changes
+			if (newVal && !this.is_user_editing_total) {
+				this.editable_grand_total = newVal;
+			}
+		},
 	},
 	methods: {
 		extractSubmissionErrorMessage(exc) {
@@ -1535,6 +1547,39 @@ export default {
 			return blocking
 				? __("Insufficient stock:\n{0}", [msg])
 				: __("Stock is lower than requested:\n{0}", [msg]);
+		},
+		// Update grand total and calculate discount
+		updateGrandTotal() {
+			if (!this.invoice_doc || !this.editable_grand_total) {
+				return;
+			}
+
+			const newTotal = parseFloat(this.editable_grand_total) || 0;
+			const currentTotal = parseFloat(this.invoice_doc.grand_total) || 0;
+			
+			if (newTotal <= 0) {
+				// Reset to original if invalid
+				this.editable_grand_total = currentTotal;
+				return;
+			}
+
+			// Calculate the discount needed
+			const baseTotal = parseFloat(this.invoice_doc.total) || 0; // Total before discount
+			const discountAmount = baseTotal - newTotal;
+			
+			// Apply the discount via invoice store
+			if (discountAmount >= 0) {
+				this.is_user_editing_total = true;
+				this.invoiceStore.mergeInvoiceDoc({
+					discount_amount: discountAmount,
+					grand_total: newTotal
+				});
+				
+				// Reset flag after a brief delay
+				this.$nextTick(() => {
+					this.is_user_editing_total = false;
+				});
+			}
 		},
 		// Methods for return amount functionality
 		getOriginalInvoiceTotal() {
