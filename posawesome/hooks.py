@@ -131,7 +131,11 @@ doc_events = {
         "after_insert": "posawesome.posawesome.api.customer.after_insert",
     }
 }
-
+scheduler_events = {
+    "daily": [
+        "posawesome.tasks.expire_old_reservations"
+    ]
+}
 # Scheduled Tasks
 # ---------------
 
