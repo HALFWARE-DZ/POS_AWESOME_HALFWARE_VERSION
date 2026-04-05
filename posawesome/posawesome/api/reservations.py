@@ -55,13 +55,13 @@ def complete_reservation(reservation_invoice_name, payments_data):
         for item in reservation.items:
             valuation_rate = frappe.db.get_value(
                 "Bin",
-                {"item_code": item.item_code, "warehouse": "RESERVE - HW"},
+                {"item_code": item.item_code, "warehouse": "RESERVE - MT"},
                 "valuation_rate"
             ) or item.rate or 1
             
             se.append("items", {
                 "item_code": item.item_code,
-                "s_warehouse": "RESERVE - HW",  # From reserve, no target (delivered to customer)
+                "s_warehouse": "RESERVE - MT",  # From reserve, no target (delivered to customer)
                 "qty": item.qty,
                 "uom": item.uom,
                 "basic_rate": valuation_rate,

@@ -478,7 +478,7 @@ export const useItemsStore = defineStore("items", () => {
 				searchResults = performLocalSearch(term, sourceItems);
 
 				// If no results and term is specific enough, search server
-				if (searchResults.length === 0 && term.length >= 3) {
+				if (searchResults.length === 0 && term.length >= 2) {
 					await loadItems({
 						searchValue: term,
 						groupFilter: itemGroup.value,

@@ -86,7 +86,7 @@ def get_reserved_details(item_code, main_warehouse):
         tuple: (total_reserved_qty, reserved_list)
     """
     try:
-        reserved_warehouse = "RESERVE - HW"
+        reserved_warehouse = "RESERVE - MT"
         
         # Query Stock Entries that transfer from main warehouse to reserve warehouse
         StockEntry = DocType("Stock Entry")

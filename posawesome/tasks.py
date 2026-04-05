@@ -34,14 +34,14 @@ def expire_old_reservations():
                     "Bin",
                     {
                         "item_code": item.item_code,
-                        "warehouse": "RESERVE - HW"
+                        "warehouse": "RESERVE - MT"
                     },
                     "valuation_rate"
                 ) or item.rate or 1
                 
                 se.append("items", {
                     "item_code": item.item_code,
-                    "s_warehouse": "RESERVE - HW",      # From reserve
+                    "s_warehouse": "RESERVE - MT",      # From reserve
                     "t_warehouse": item.warehouse,      # Back to original (Finished Goods)
                     "qty": item.qty,                   # Positive qty
                     "uom": item.uom,

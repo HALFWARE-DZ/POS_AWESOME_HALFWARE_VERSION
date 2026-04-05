@@ -54,7 +54,7 @@ def get_reserved_stock_info(item_code, warehouse):
     frappe.logger().info(f"DEBUG: Available qty in {warehouse}: {available_qty}")
     
     # Get reserved quantity in "RESERVE - HW" warehouse
-    reserve_warehouse = "RESERVE - HW"
+    reserve_warehouse = "RESERVE - MT"
     reserved_qty = get_reserved_quantity(item_code, reserve_warehouse)
     frappe.logger().info(f"DEBUG: Reserved qty in {reserve_warehouse}: {reserved_qty}")
     

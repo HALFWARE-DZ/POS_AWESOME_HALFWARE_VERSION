@@ -1014,7 +1014,7 @@ export default {
 			this.scheduleLastInvoiceRateRefresh();
 			this.syncHighlightedItem();
 		},
-		// Automatically search when the query has at least 3 characters
+		// Automatically search when the query has at least 2 characters
 		first_search: _.debounce(function (val, oldVal) {
 			if (this.clearingSearch) {
 				return;
@@ -1023,10 +1023,10 @@ export default {
 			const oldLen = (oldVal || "").trim().length;
 
 			// Check if we should trigger search
-			if (newLen >= 3) {
+			if (newLen >= 2) {
 				// Call without arguments so search_onchange treats it like an Enter key/Auto trigger
 				this.search_onchange();
-			} else if (oldLen >= 3 && newLen === 0) {
+			} else if (oldLen >= 2 && newLen === 0) {
 				// Reset items only when search is fully cleared
 				this.clearSearch();
 			}
@@ -1399,7 +1399,7 @@ export default {
 
 			// Filter by search term
 			const rawSearch = (searchTerm || "").trim();
-			if (rawSearch && rawSearch.length >= 3) {
+			if (rawSearch && rawSearch.length >= 2) {
 				const term = rawSearch.toLowerCase();
 				const searchWords = term.split(/\s+/).filter(Boolean);
 				
@@ -2540,8 +2540,8 @@ export default {
 				return;
 			}
 
-			// Require a minimum of three characters before running a search
-			if (!trimmedQuery || trimmedQuery.length < 3) {
+			// Require a minimum of two characters before running a search
+			if (!trimmedQuery || trimmedQuery.length < 2) {
 				vm.search_from_scanner = false;
 				return;
 			}
@@ -4875,7 +4875,7 @@ export default {
 
 			// Check if we need to apply local search filtering
 			// This happens when the user types but the store hasn't updated yet (debounce)
-			const needsLocalSearch = searchTerm && searchTerm.length >= 3 && searchTerm !== activeStoreSearch;
+			const needsLocalSearch = searchTerm && searchTerm.length >= 2 && searchTerm !== activeStoreSearch;
 
 			// Check other filters
 			const hideZeroRate = this.hide_zero_rate_items;
