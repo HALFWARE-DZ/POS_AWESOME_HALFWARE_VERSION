@@ -93,6 +93,26 @@
 							class="summary-field"
 						/>
 					</v-col>
+
+					<!-- Final Total (Editable) -->
+					<v-col cols="6">
+						<v-text-field
+							ref="finalTotalField"
+							v-model="editableFinalTotalDisplay"
+							@update:model-value="handleFinalTotalUpdate"
+							@focus="handleFinalTotalFocus"
+							@blur="handleFinalTotalBlur"
+							:label="frappe._('Final Total')"
+							prepend-inner-icon="mdi-cash-check"
+							variant="solo"
+							density="compact"
+							color="primary"
+							:prefix="currencySymbol(displayCurrency)"
+							:disabled="!pos_profile.posa_allow_user_to_edit_additional_discount"
+							class="summary-field"
+							:placeholder="formatCurrency(0)"
+						/>
+					</v-col>
 				</v-row>
 			</v-col>
 
@@ -241,6 +261,8 @@ export default {
 			additionalDiscountPercentageDisplay: null,
 			isEditingAdditionalDiscount: false,
 			isEditingAdditionalDiscountPercentage: false,
+			editableFinalTotalDisplay: null,
+			isEditingFinalTotal: false,
 		};
 	},
 	emits: [
@@ -269,6 +291,10 @@ export default {
 			}
 			return false;
 		},
+		originalGrandTotal() {
+			// Calculate the original grand total (subtotal - items discount)
+			return (parseFloat(this.subtotal) || 0) - (parseFloat(this.total_items_discount_amount) || 0);
+		},
 	},
 	watch: {
 		additional_discount(value) {
@@ -281,20 +307,30 @@ export default {
 				this.additionalDiscountPercentageDisplay = this.normalizeDiscountDisplay(value);
 			}
 		},
+		originalGrandTotal(newVal) {
+			// Update editable final total when original changes, but only if not editing
+			if (!this.isEditingFinalTotal && newVal !== undefined) {
+				this.editableFinalTotalDisplay = this.normalizeDiscountDisplay(newVal);
+			}
+		},
 	},
 	created() {
 		this.additionalDiscountDisplay = this.normalizeDiscountDisplay(this.additional_discount);
 		this.additionalDiscountPercentageDisplay = this.normalizeDiscountDisplay(
 			this.additional_discount_percentage,
 		);
+		// Initialize editable final total with current grand total
+		this.editableFinalTotalDisplay = this.normalizeDiscountDisplay(this.originalGrandTotal);
 	},
 	methods: {
 		normalizeDiscountDisplay(value) {
 			if (value === 0 || value === "0") {
 				return "";
 			}
-			return value;
+			// Format as currency with 2 decimal places to avoid errors
+			return this.formatCurrency(value);
 		},
+
 		// Debounced handlers for better performance
 		handleAdditionalDiscountUpdate(value) {
 			this.$emit("update:additional_discount", value);
@@ -398,6 +434,47 @@ export default {
 				await this.$emit("show-payment");
 			} finally {
 				this.paymentLoading = false;
+			}
+		},
+
+		// Final Total editing handlers
+		handleFinalTotalUpdate(value) {
+			this.calculateAndApplyDiscount(value);
+		},
+
+		handleFinalTotalFocus() {
+			this.isEditingFinalTotal = true;
+		},
+
+		handleFinalTotalBlur() {
+			this.isEditingFinalTotal = false;
+		},
+
+		calculateAndApplyDiscount(newTotal) {
+			if (!newTotal || !this.originalGrandTotal) {
+				return;
+			}
+
+			// Parse the input value - handle both "5000" and "5000.00" formats
+			const parsedNewTotal = parseFloat(newTotal.toString().replace(/[^\d.-]/g, '')) || 0;
+			const baseTotal = parseFloat(this.originalGrandTotal) || 0;
+			
+			if (parsedNewTotal <= 0) {
+				// Reset to original if invalid
+				this.editableFinalTotalDisplay = this.normalizeDiscountDisplay(baseTotal);
+				this.$emit("update:additional_discount", 0);
+				return;
+			}
+
+			// Calculate the discount needed
+			const discountAmount = baseTotal - parsedNewTotal;
+			
+			// Apply the discount by emitting the update event
+			if (discountAmount >= 0) {
+				this.$emit("update:additional_discount", discountAmount);
+			} else {
+				// If new total is higher than base, set discount to 0
+				this.$emit("update:additional_discount", 0);
 			}
 		},
 	},
