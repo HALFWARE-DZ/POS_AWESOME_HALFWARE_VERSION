@@ -843,46 +843,54 @@ def get_closing_shift_overview(pos_opening_shift):
         base_amount = multiplier * abs(raw_base_amount)
 
         if entry.get("payment_type") == "Pay":
-            change_row = overpayment_change_totals_by_currency.setdefault(
-                payment_currency,
-                {
-                    "currency": payment_currency,
-                    "total": 0,
-                    "company_currency_total": 0,
-                    "exchange_rates": set(),
-                },
-            )
-            refund_amount = abs(raw_amount)
-            refund_base_amount = abs(raw_base_amount)
-            change_row["total"] += refund_amount
-            change_row["company_currency_total"] += refund_base_amount
-            overpayment_change_company_currency_total += refund_base_amount
+            # FIX: Only treat as 'Change/Overpayment' if it's NOT an Employee/Supplier payment
+            # Employee/Supplier payments are simple cash outflows, not customer refunds
+            if entry.get("party_type") not in ["Employee", "Supplier"]:
+                change_row = overpayment_change_totals_by_currency.setdefault(
+                    payment_currency,
+                    {
+                        "currency": payment_currency,
+                        "total": 0,
+                        "company_currency_total": 0,
+                        "exchange_rates": set(),
+                    },
+                )
+                refund_amount = abs(raw_amount)
+                refund_base_amount = abs(raw_base_amount)
+                change_row["total"] += refund_amount
+                change_row["company_currency_total"] += refund_base_amount
+                overpayment_change_company_currency_total += refund_base_amount
 
-            total_change_entry = total_change_totals_by_currency.setdefault(
-                payment_currency,
-                {
-                    "currency": payment_currency,
-                    "total": 0,
-                    "company_currency_total": 0,
-                    "exchange_rates": set(),
-                },
-            )
-            total_change_entry["total"] += refund_amount
-            total_change_entry["company_currency_total"] += refund_base_amount
+                total_change_entry = total_change_totals_by_currency.setdefault(
+                    payment_currency,
+                    {
+                        "currency": payment_currency,
+                        "total": 0,
+                        "company_currency_total": 0,
+                        "exchange_rates": set(),
+                    },
+                )
+                total_change_entry["total"] += refund_amount
+                total_change_entry["company_currency_total"] += refund_base_amount
 
-            if payment_currency != company_currency:
-                rate = None
-                if refund_amount:
-                    rate = abs(refund_base_amount) / abs(refund_amount) if refund_base_amount else None
-                if not rate and entry_rate:
-                    rate = flt(entry_rate)
-                if rate:
-                    change_row["exchange_rates"].add(rate)
-                    total_change_entry["exchange_rates"].add(rate)
+                if payment_currency != company_currency:
+                    rate = None
+                    if refund_amount:
+                        rate = abs(refund_base_amount) / abs(refund_amount) if refund_base_amount else None
+                    if not rate and entry_rate:
+                        rate = flt(entry_rate)
+                    if rate:
+                        change_row["exchange_rates"].add(rate)
+                        total_change_entry["exchange_rates"].add(rate)
 
         references = references_by_entry.get(entry.get("name")) or []
         allocated_amount_sum = 0
         allocated_base_sum = 0
+
+        # Skip reference processing for employee/supplier payments to avoid double-counting
+        # Employee payments should be simple cash outflows without complex reference allocations
+        if entry.get("payment_type") == "Pay" and entry.get("party_type") in ["Employee", "Supplier"]:
+            references = []
 
         if references:
             for reference in references:
@@ -918,6 +926,9 @@ def get_closing_shift_overview(pos_opening_shift):
         residual_base = base_amount - allocated_base_sum
 
         unallocated_amount = entry.get("unallocated_amount")
+        # Skip unallocated amount processing for employee/supplier payments to avoid double-counting
+        if entry.get("payment_type") == "Pay" and entry.get("party_type") in ["Employee", "Supplier"]:
+            unallocated_amount = None
         if unallocated_amount not in (None, ""):
             residual_amount = multiplier * abs(flt(unallocated_amount))
             residual_base = multiplier * abs(
@@ -944,17 +955,34 @@ def get_closing_shift_overview(pos_opening_shift):
             if row["mode_of_payment"] != cash_mode_of_payment:
                 continue
 
-            overpayment_change_row = overpayment_change_totals_by_currency.get(row["currency"])
-            if overpayment_change_row:
-                row["total"] -= flt(overpayment_change_row.get("total"))
-
-                base_overpayment_change = overpayment_change_row.get("company_currency_total")
-                if base_overpayment_change:
-                    row["company_currency_total"] -= flt(base_overpayment_change)
+            # FIX: Skip overpayment change subtraction for cash mode to avoid double-counting employee payments
+            # Employee payments should not be affected by change calculations
+            # Only apply overpayment change for non-cash modes or when it makes sense
+            if row["mode_of_payment"] != cash_mode_of_payment:
+                overpayment_change_row = overpayment_change_totals_by_currency.get(row["currency"])
+                if overpayment_change_row:
+                    row["total"] -= flt(overpayment_change_row.get("total"))
+                    row["company_currency_total"] -= flt(overpayment_change_row.get("company_currency_total"))
 
     cash_expected_totals = []
     cash_expected_company_currency_total = 0
     if cash_mode_of_payment:
+        # Add opening amount from balance_details
+        for detail in opening_shift_doc.get("balance_details"):
+            if detail.get("mode_of_payment") == cash_mode_of_payment:
+                opening_amount = flt(detail.get("amount") or 0)
+                if opening_amount:
+                    cash_expected_totals.append(
+                        {
+                            "currency": company_currency,
+                            "total": opening_amount,
+                            "company_currency_total": opening_amount,
+                            "exchange_rates": [],
+                        },
+                    )
+                    cash_expected_company_currency_total += opening_amount
+        
+        # Add all cash transactions (sales and employee payments) since both affect cash in drawer
         for row in payments_by_mode.values():
             if row["mode_of_payment"] == cash_mode_of_payment:
                 cash_expected_totals.append(
@@ -1183,17 +1211,17 @@ def make_closing_shift_from_opening(opening_shift):
     pos_payments = get_payments_entries(opening_shift.get("name"))
 
     for py in pos_payments:
-        pos_payments_table.append(
-            frappe._dict(
-                {
-                    "payment_entry": py.name,
-                    "mode_of_payment": py.mode_of_payment,
-                    "paid_amount": py.paid_amount,
-                    "posting_date": py.posting_date,
-                    "customer": py.party,
-                }
-            )
-        )
+        payment_data = {
+            "payment_entry": py.name,
+            "mode_of_payment": py.mode_of_payment,
+            "paid_amount": py.paid_amount,
+            "posting_date": py.posting_date,
+        }
+        # Only set customer field for Customer payments, not for Employee/Supplier payments
+        if py.party_type == "Customer":
+            payment_data["customer"] = py.party
+        
+        pos_payments_table.append(frappe._dict(payment_data))
         existing_pay = [pay for pay in payments if pay.mode_of_payment == py.mode_of_payment]
         multiplier = -1 if py.payment_type == "Pay" else 1
         signed_amount = multiplier * abs(get_base_value(py, "paid_amount", "base_paid_amount"))
