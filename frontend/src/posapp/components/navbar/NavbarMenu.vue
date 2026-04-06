@@ -181,10 +181,10 @@
 					</template>
 					<div class="menu-content-compact">
 						<v-list-item-title class="menu-item-title-compact">{{
-							__("Payment")
+							__("Sortie de fonds")
 						}}</v-list-item-title>
 						<v-list-item-subtitle class="menu-item-subtitle-compact">{{
-							__("Make a payment")
+							__("effectuer un paiement")
 						}}</v-list-item-subtitle>
 					</div>
 				</v-list-item>
@@ -196,10 +196,10 @@
 					</template>
 					<div class="menu-content-compact">
 						<v-list-item-title class="menu-item-title-compact">{{
-							__("Check In")
+							__("Entrée de fonds")
 						}}</v-list-item-title>
 						<v-list-item-subtitle class="menu-item-subtitle-compact">{{
-							__("Receive money")
+							__("recevoir de l'argent")
 						}}</v-list-item-subtitle>
 					</div>
 				</v-list-item>

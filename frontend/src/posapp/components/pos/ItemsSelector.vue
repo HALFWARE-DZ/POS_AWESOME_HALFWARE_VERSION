@@ -1127,7 +1127,15 @@ export default {
 				firstFewItems: this.displayedItems.slice(0, 3).map(item => item.item_code)
 			});
 
+			// Set loading state
 			this.reservedStockLoading = true;
+			
+			// Emit loading progress for better UX
+			this.eventBus.emit('data-load-progress', {
+				name: 'reserved-stock',
+				progress: 0,
+				message: 'Loading stock quantities...'
+			});
 
 			try {
 				const itemsData = this.displayedItems.map(item => ({
@@ -1163,8 +1171,23 @@ export default {
 				}
 			} catch (error) {
 				console.error('DEBUG: refreshReservedStockData - error:', error);
+				
+				// Emit error progress
+				this.eventBus.emit('data-load-progress', {
+					name: 'reserved-stock',
+					progress: 0,
+					message: 'Failed to load stock quantities',
+					error: true
+				});
 			} finally {
 				this.reservedStockLoading = false;
+				
+				// Emit completion progress
+				this.eventBus.emit('data-load-progress', {
+					name: 'reserved-stock',
+					progress: 100,
+					message: 'Stock quantities loaded'
+				});
 			}
 		},
 		startReservedStockAutoRefresh() {
@@ -1841,7 +1864,7 @@ export default {
 							vm.markStorageUnavailable && vm.markStorageUnavailable();
 						}
 					}
-					releaseLoading();
+					vm.refreshInFlight = false;
 				});
 			} catch (err) {
 				if (err.name !== "AbortError") {
@@ -1989,8 +2012,20 @@ export default {
 				await this.verifyServerItemCount();
 			}
 
-			this.$nextTick(() => {
+			this.$nextTick(async () => {
+				// First prime the stock state
 				this.primeStockState();
+				
+				// Then immediately refresh reserved stock data and wait for it to complete
+				// This ensures quantities are available when items are first displayed
+				try {
+					await this.refreshReservedStockData();
+				} catch (error) {
+					console.warn('Failed to refresh reserved stock data during initialization:', error);
+				}
+				
+				// Force update to ensure quantities are displayed correctly
+				this.$forceUpdate();
 			});
 		},
 		async forceReloadItems() {
