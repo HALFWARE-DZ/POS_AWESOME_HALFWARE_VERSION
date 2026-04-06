@@ -67,6 +67,7 @@
 					@toggle-theme="toggleTheme"
 					@logout="logOut"
 					@open-payment-dialog="openPaymentDialog"
+					@open-checkin-dialog="openCheckInDialog"
 				/>
 			</template>
 		</NavbarAppBar>
@@ -389,6 +390,9 @@ export default {
 		},
 		openPaymentDialog() {
 			this.eventBus.emit("open_payment_dialog");
+		},
+		openCheckInDialog() {
+			this.eventBus.emit("open_checkin_dialog");
 		},
 		toggleManualOffline() {
 			this.$emit("toggle-offline");

@@ -188,6 +188,21 @@
 						}}</v-list-item-subtitle>
 					</div>
 				</v-list-item>
+				<v-list-item @click="$emit('open-checkin-dialog')" class="menu-item-compact success-action">
+					<template v-slot:prepend>
+						<div class="menu-icon-wrapper-compact success-icon">
+							<v-icon color="white" size="16">mdi-cash-plus</v-icon>
+						</div>
+					</template>
+					<div class="menu-content-compact">
+						<v-list-item-title class="menu-item-title-compact">{{
+							__("Check In")
+						}}</v-list-item-title>
+						<v-list-item-subtitle class="menu-item-subtitle-compact">{{
+							__("Receive money")
+						}}</v-list-item-subtitle>
+					</div>
+				</v-list-item>
 				<v-divider class="menu-section-divider-compact"></v-divider>
 
 				<v-list-item @click="$emit('show-about')" class="menu-item-compact neutral-action">
@@ -646,11 +661,6 @@ export default {
 	transform: translateY(-1px);
 }
 
-/* Desktop Menu Button - keep existing styling */
-.desktop-menu-btn {
-	/* Inherits from .menu-btn-compact */
-}
-
 /* Elite menu button text and icon colors */
 .menu-btn-compact .v-btn__content {
 	color: #1976d2 !important;
@@ -810,6 +820,11 @@ export default {
 	box-shadow: 0 2px 6px rgba(97, 97, 97, 0.2);
 }
 
+.success-icon {
+	background: linear-gradient(135deg, #2e7d32 0%, #43a047 100%);
+	box-shadow: 0 2px 6px rgba(46, 125, 50, 0.3);
+}
+
 .danger-icon {
 	background: linear-gradient(135deg, #d32f2f 0%, #f44336 100%);
 	box-shadow: 0 2px 6px rgba(211, 47, 47, 0.2);
@@ -862,6 +877,11 @@ export default {
 .neutral-action:hover .neutral-icon {
 	transform: scale(1.1);
 	box-shadow: 0 3px 8px rgba(97, 97, 97, 0.25);
+}
+
+.success-action:hover .success-icon {
+	transform: scale(1.1);
+	box-shadow: 0 3px 8px rgba(46, 125, 50, 0.35);
 }
 
 .danger-action:hover .danger-icon {

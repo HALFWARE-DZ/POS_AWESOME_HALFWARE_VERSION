@@ -11,6 +11,7 @@
 		<MpesaPayments></MpesaPayments>
 		<Variants></Variants>
 		<PaymentDialog ref="paymentDialog" @payment-success="handlePaymentSuccess" @show-message="showMessage"></PaymentDialog>
+		<CheckInDialog ref="checkInDialog" @checkin-success="handleCheckInSuccess" @show-message="showMessage"></CheckInDialog>
 		<OpeningDialog v-if="dialog" :dialog="dialog"></OpeningDialog>
 		<History v-if="showHistory"></History>
 		<v-row v-show="!dialog && !showHistory" dense class="ma-0 dynamic-main-row">
@@ -56,6 +57,7 @@ import Variants from "./Variants.vue";
 import Returns from "./Returns.vue";
 import MpesaPayments from "./Mpesa-Payments.vue";
 import PaymentDialog from "./PaymentDialog.vue";
+import CheckInDialog from "./CheckInDialog.vue";
 import History from "./History.vue";
 import {
 	getOpeningStorage,
@@ -106,16 +108,16 @@ export default {
 		Invoice,
 		OpeningDialog,
 		Payments,
-		Drafts,
-
-		Returns,
 		PosOffers,
 		PosCoupons,
+		Drafts,
+		SalesOrders,
 		NewAddress,
 		Variants,
+		Returns,
 		MpesaPayments,
-		SalesOrders,
 		PaymentDialog,
+		CheckInDialog,
 		History,
 	},
 
@@ -152,8 +154,15 @@ export default {
 		openPaymentDialog() {
 			this.$refs.paymentDialog.openDialog();
 		},
+		openCheckInDialog() {
+			this.$refs.checkInDialog.openDialog();
+		},
 		handlePaymentSuccess(data) {
 			console.log('Payment processed successfully:', data);
+			// You can add additional logic here if needed
+		},
+		handleCheckInSuccess(data) {
+			console.log('Check in processed successfully:', data);
 			// You can add additional logic here if needed
 		},
 		showMessage(data) {
@@ -189,6 +198,9 @@ export default {
 			});
 			this.eventBus.on("open_payment_dialog", () => {
 				this.openPaymentDialog();
+			});
+			this.eventBus.on("open_checkin_dialog", () => {
+				this.openCheckInDialog();
 			});
 			this.eventBus.on("open_shift_details", () => {
 				this.get_closing_data();
