@@ -16,6 +16,8 @@ from frappe.utils import cint, nowdate
 
 from frappe import _
 
+from frappe.utils.password import get_decrypted_password
+
 from .utilities import get_version
 
 
@@ -219,5 +221,35 @@ def update_opening_shift_data(data, pos_profile):
     data["stock_settings"] = {}
 
     data["stock_settings"].update({"allow_negative_stock": bool(allow_negative_stock)})
+
+
+@frappe.whitelist()
+def validate_pos_pin(pos_profile, pin_code):
+    """Validate PIN code for POS Profile"""
+    try:
+        # Proper way to get decrypted password using Frappe's built-in function
+        stored_pin = get_decrypted_password("POS Profile", pos_profile, "custom_pos_pin_code")
+        
+        if not stored_pin:
+            return {"valid": False, "message": "No PIN code set for this POS Profile"}
+        
+        # Debug logging to Frappe log
+        frappe.logger().debug(f"PIN DEBUG: pos_profile = {pos_profile}")
+        frappe.logger().debug(f"PIN DEBUG: input_pin = {pin_code}")
+        frappe.logger().debug(f"PIN DEBUG: stored_pin = {stored_pin}")
+        frappe.logger().debug(f"PIN DEBUG: stored_pin_type = {type(stored_pin)}")
+        frappe.logger().debug(f"PIN DEBUG: input_pin_type = {type(pin_code)}")
+        
+        # Validate PIN (simple comparison, can be enhanced with hashing)
+        if str(pin_code) == str(stored_pin):
+            frappe.logger().debug("PIN DEBUG: Validation SUCCESS")
+            return {"valid": True, "message": "PIN validated successfully"}
+        else:
+            frappe.logger().debug("PIN DEBUG: Validation FAILED")
+            return {"valid": False, "message": "Invalid PIN code"}
+            
+    except Exception as e:
+        frappe.log_error(f"PIN validation error: {str(e)}", "POS PIN Validation")
+        return {"valid": False, "message": "Error validating PIN"}
 
 

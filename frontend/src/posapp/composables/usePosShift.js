@@ -124,6 +124,8 @@ export function usePosShift(openDialog) {
 						title: `POS Shift Closed`,
 						color: "success",
 					});
+					// Emit the submitted closing shift data for printing
+					eventBus?.emit("closing_shift_submitted", r.message);
 					check_opening_entry();
 				}
 			});
@@ -131,3 +133,4 @@ export function usePosShift(openDialog) {
 
 	return { pos_profile, pos_opening_shift, check_opening_entry, get_closing_data, submit_closing_pos };
 }
+

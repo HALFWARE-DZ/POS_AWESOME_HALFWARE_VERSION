@@ -852,12 +852,25 @@
 			</v-card-actions>
 		</v-card>
 	</v-dialog>
+	
+	<!-- PIN Validation Dialog -->
+	<PinDialog
+		v-model:show="showPinDialog"
+		:pos-profile="pos_profile"
+		@validated="onPinValidated"
+		@cancelled="onPinCancelled"
+	/>
 </template>
 
 <script>
 import format from "../../format";
+import PinDialog from "./PinDialog.vue";
+
 export default {
 	mixins: [format],
+	components: {
+		PinDialog
+	},
 	data: () => ({
 		closingDialog: false,
 		itemsPerPage: 20,
@@ -866,6 +879,7 @@ export default {
 		overview: null,
 		overviewLoading: false,
 		headers: [],
+		showPinDialog: false,
 		baseHeaders: [
 			{
 				title: __("Mode of Payment"),
@@ -953,6 +967,36 @@ export default {
 				alert(this.__("Invalid closing amount"));
 				return;
 			}
+			
+			// Show PIN dialog before submitting closing shift
+			this.showPinDialog = true;
+		},
+
+		onPinValidated(data) {
+			// PIN validated, proceed with closing shift submission
+			this.submit_closing_shift();
+		},
+
+		onPinCancelled() {
+			// User cancelled PIN entry
+			this.showPinDialog = false;
+		},
+
+		submit_closing_shift() {
+			// Store the dialog data for printing after submission
+			this.pendingPrintData = this.dialog_data;
+			
+			// Listen for successful submission
+			this.eventBus.on("closing_shift_submitted", (data) => {
+				if (data && data.name) {
+					// Print the closing shift after successful submission
+					const printUrl = `/printview?doctype=POS%20Closing%20Shift&name=${data.name}&format=Closing Shift&trigger_print=1`;
+					window.open(printUrl, '_blank');
+				}
+				// Clean up the listener
+				this.eventBus.off("closing_shift_submitted");
+			});
+			
 			this.eventBus.emit("submit_closing_pos", this.dialog_data);
 			this.closingDialog = false;
 		},

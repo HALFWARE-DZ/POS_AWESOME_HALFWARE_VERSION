@@ -441,6 +441,7 @@ def get_payments_entries(pos_opening_shift):
             "posting_date",
             "party",
             "payment_type",
+            "custom_remark",
         ],
     )
 
@@ -1216,6 +1217,9 @@ def make_closing_shift_from_opening(opening_shift):
             "mode_of_payment": py.mode_of_payment,
             "paid_amount": py.paid_amount,
             "posting_date": py.posting_date,
+            "payment_type": py.payment_type,  # Add payment_type
+            "party": py.party,  # Add party
+            "remark": py.custom_remark,  # Add custom_remark from Payment Entry
         }
         # Only set customer field for Customer payments, not for Employee/Supplier payments
         if py.party_type == "Customer":

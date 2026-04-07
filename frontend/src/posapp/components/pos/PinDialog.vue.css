@@ -1,0 +1,22 @@
+
+.pin-input {
+	letter-spacing: 0.2em;
+	text-align: center;
+	font-size: 1.2em;
+}
+
+.pin-pad {
+	max-width: 250px;
+	margin: 0 auto;
+}
+
+.pin-btn {
+	width: 100%;
+	height: 50px !important;
+	font-size: 1.1em;
+	font-weight: bold;
+}
+
+.pin-btn:hover {
+	transform: scale(1.05);
+}

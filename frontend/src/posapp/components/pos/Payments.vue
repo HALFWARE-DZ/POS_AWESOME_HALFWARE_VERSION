@@ -740,23 +740,7 @@
 		<!-- Action Buttons -->
 		<v-card flat class="cards mb-0 mt-3 pa-0">
 			<v-row align="start" no-gutters>
-				<v-col cols="6">
-					<v-btn
-						ref="submitButton"
-						block
-						size="large"
-						color="primary"
-						theme="dark"
-						class="submit-btn"
-						@click="submit"
-						:loading="loading"
-						:disabled="loading || vaildatPayment"
-						:class="{ 'submit-highlight': highlightSubmit }"
-					>
-						{{ __("Submit") }}
-					</v-btn>
-				</v-col>
-				<v-col cols="6" class="pl-1">
+				<v-col cols="12">
 					<v-btn
 						block
 						size="large"
@@ -766,7 +750,7 @@
 						:loading="loading"
 						:disabled="loading || vaildatPayment"
 					>
-						{{ __("Submit & Print") }}
+						{{ __("Validé") }}
 					</v-btn>
 				</v-col>
 				<v-col cols="12">
@@ -2321,10 +2305,7 @@ export default {
 		},
 		// Open print page for invoice
 		load_print_page() {
-			const print_format =
-				this.print_format ||
-				this.pos_profile.print_format_for_online ||
-				this.pos_profile.print_format;
+			const print_format = "Bon de caisse"; // Force use "Bon de caisse" print format
 			const letter_head = this.pos_profile.letter_head || 0;
 			let doctype;
 			const debugPrint = isDebugPrintEnabled();
@@ -2407,7 +2388,7 @@ export default {
 		// Print invoice using a more detailed offline template
 		async print_offline_invoice(invoice) {
 			if (!invoice) return;
-			const html = await renderOfflineInvoiceHTML(invoice);
+			const html = await renderOfflineInvoiceHTML(invoice, "Bon de caisse"); // Force "Bon de caisse" print format
 			const win = window.open("", "_blank");
 			win.document.write(html);
 			win.document.close();
@@ -2415,9 +2396,9 @@ export default {
 			win.print();
 		},
 		// Open offline invoice preview without triggering auto-print (for new-tab mode)
-		async open_offline_invoice_preview(invoice, { debugPrint = false, printFormat = "" } = {}) {
+		async open_offline_invoice_preview(invoice, { debugPrint = false, printFormat = "Bon de caisse" } = {}) {
 			if (!invoice) return;
-			const html = await renderOfflineInvoiceHTML(invoice);
+			const html = await renderOfflineInvoiceHTML(invoice, printFormat || "Bon de caisse");
 			const win = window.open("", "_blank");
 			if (!win) return;
 			win.document.write(html);

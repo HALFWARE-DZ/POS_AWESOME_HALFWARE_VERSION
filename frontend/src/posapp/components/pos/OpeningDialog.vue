@@ -129,6 +129,14 @@
 				</v-card-actions>
 			</v-card>
 		</v-dialog>
+		
+		<!-- PIN Validation Dialog -->
+		<PinDialog
+			v-model:show="showPinDialog"
+			:pos-profile="pos_profile"
+			@validated="onPinValidated"
+			@cancelled="onPinCancelled"
+		/>
 	</v-row>
 </template>
 
@@ -141,9 +149,13 @@ import {
 	initPromise,
 	checkDbHealth,
 } from "../../../offline/index.js";
+import PinDialog from "./PinDialog.vue";
 
 export default {
 	mixins: [format],
+	components: {
+		PinDialog
+	},
 	props: ["dialog"],
 
 	data() {
@@ -158,6 +170,7 @@ export default {
 			pos_profile: "",
 			payments_method_data: [],
 			payments_methods: [],
+			showPinDialog: false,
 			payments_methods_headers: [
 				{
 					title: __("Mode of Payment"),
@@ -257,6 +270,21 @@ export default {
 				return;
 			}
 
+			// Show PIN dialog before creating opening shift
+			this.showPinDialog = true;
+		},
+
+		onPinValidated(data) {
+			// PIN validated, proceed with opening shift creation
+			this.create_opening_voucher();
+		},
+
+		onPinCancelled() {
+			// User cancelled PIN entry
+			this.showPinDialog = false;
+		},
+
+		create_opening_voucher() {
 			this.is_loading = true;
 			const vm = this;
 
@@ -278,6 +306,11 @@ export default {
 						vm.close_opening_dialog();
 						vm.is_loading = false;
 					}
+				})
+				.catch((error) => {
+					console.error("Error creating opening voucher:", error);
+					vm.is_loading = false;
+					vm.showPinDialog = false;
 				});
 		},
 

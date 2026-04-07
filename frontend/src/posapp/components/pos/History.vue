@@ -1294,7 +1294,7 @@ export default {
 
 		printInvoice(invoice) {
 			// Trigger print functionality
-			const url = `/printview?doctype=Sales%20Invoice&name=${invoice.name}&format=Standard&trigger_print=1`;
+			const url = `/printview?doctype=Sales%20Invoice&name=${invoice.name}&format=Bon de caisse&trigger_print=1`;
 			window.open(url, '_blank');
 		},
 
