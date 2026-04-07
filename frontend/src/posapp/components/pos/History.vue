@@ -113,87 +113,308 @@
 				</v-row>
 			</div>
 
-			<!-- Invoices List -->
-			<div ref="historyContainer" class="overflow-y-auto pa-2" style="max-height: 40vh">
-				<v-list v-if="invoices.length > 0" class="pa-0">
-					<v-list-item
-						v-for="invoice in invoices"
-						:key="invoice.name"
-						class="mb-2 history-item"
-						@click="selectInvoice(invoice)"
-						:class="{ 'selected-invoice': selectedInvoice?.name === invoice.name }"
-					>
-						<template v-slot:prepend>
-							<v-avatar size="40" :color="getStatusColor(invoice.status)">
-								<v-icon color="white">mdi-receipt</v-icon>
-							</v-avatar>
-						</template>
+			<!-- Tabs for Invoices and Payment Entries -->
+			<v-tabs v-model="activeTab" class="mb-4">
+				<v-tab value="invoices">
+					<v-icon left>mdi-receipt</v-icon>
+					Sales Invoices
+				</v-tab>
+				<v-tab value="payments">
+					<v-icon left>mdi-cash-minus</v-icon>
+					Payment Entries
+				</v-tab>
+			</v-tabs>
+
+			<v-window v-model="activeTab">
+				<!-- Invoices Tab -->
+				<v-window-item value="invoices">
+					<!-- Invoices List -->
+					<div ref="historyContainer" class="overflow-y-auto pa-2" style="max-height: 40vh">
+						<v-list v-if="invoices.length > 0" class="pa-0">
+							<v-list-item
+								v-for="invoice in invoices"
+								:key="invoice.name"
+								class="mb-2 history-item"
+								@click="selectInvoice(invoice)"
+								:class="{ 'selected-invoice': selectedInvoice?.name === invoice.name }"
+							>
+								<template v-slot:prepend>
+									<v-avatar size="40" :color="getStatusColor(invoice.status)">
+										<v-icon color="white">mdi-receipt</v-icon>
+									</v-avatar>
+								</template>
+								
+								<v-list-item-title class="font-weight-medium">
+									<div class="d-flex align-center">
+										<span>{{ invoice.name }}</span>
+										<v-chip
+											v-if="invoice.custom_is_reserve"
+											:size="'x-small'"
+											color="blue"
+											class="ml-2"
+										>
+											Reservation
+										</v-chip>
+										<v-chip
+											:size="'x-small'"
+											:color="getStatusColor(invoice.status)"
+											class="ml-2"
+										>
+											{{ invoice.status }}
+										</v-chip>
+									</div>
+								</v-list-item-title>
+								
+								<v-list-item-subtitle>
+									<div class="d-flex justify-space-between align-center">
+										<span>{{ invoice.customer }}</span>
+										<span class="font-weight-bold">{{ formatCurrency(invoice.grand_total) }}</span>
+									</div>
+									<div class="text-caption text-grey-600">
+										{{ formatDate(invoice.posting_date) }}
+									</div>
+								</v-list-item-subtitle>
+								
+								<template v-slot:append>
+									<v-btn
+										icon="mdi-eye"
+										variant="text"
+										size="small"
+										@click.stop="viewInvoice(invoice)"
+									></v-btn>
+								</template>
+							</v-list-item>
+						</v-list>
 						
-						<v-list-item-title class="font-weight-medium">
-							<div class="d-flex align-center">
-								<span>{{ invoice.name }}</span>
-								<v-chip
-									v-if="invoice.custom_is_reserve"
-									:size="'x-small'"
-									color="blue"
-									class="ml-2"
-								>
-									Reservation
-								</v-chip>
-								<v-chip
-									:size="'x-small'"
-									:color="getStatusColor(invoice.status)"
-									class="ml-2"
-								>
-									{{ invoice.status }}
-								</v-chip>
-								<!-- <v-chip
-									v-if="invoice.custom_barcode"
-									:size="x-small"
-									color="grey"
-									class="ml-2"
-								>
-									<v-icon size="x-small" left>mdi-barcode</v-icon>
-									{{ invoice.custom_barcode }}
-								</v-chip> -->
+						<v-empty-state
+							v-else-if="!loading"
+							icon="mdi-receipt-text-outline"
+							title="No invoices found"
+							text="Try adjusting your filters"
+							class="my-8"
+						></v-empty-state>
+					</div>
+				</v-window-item>
+
+				<!-- Payment Entries Tab -->
+				<v-window-item value="payments">
+					<!-- Sub-tabs for payment types -->
+					<v-tabs v-model="activePaymentTab" class="mb-2">
+						<v-tab value="all">
+							<v-icon left size="small">mdi-swap-horizontal</v-icon>
+							All Payments
+						</v-tab>
+						<v-tab value="incoming">
+							<v-icon left size="small">mdi-cash-plus</v-icon>
+							Incoming
+						</v-tab>
+						<v-tab value="outgoing">
+							<v-icon left size="small">mdi-cash-minus</v-icon>
+							Outgoing
+						</v-tab>
+					</v-tabs>
+
+					<v-window v-model="activePaymentTab">
+						<!-- All Payments -->
+						<v-window-item value="all">
+							<div ref="paymentContainer" class="overflow-y-auto pa-2" style="max-height: 35vh">
+								<v-list v-if="filteredPaymentEntries.length > 0" class="pa-0">
+									<v-list-item
+										v-for="payment in filteredPaymentEntries"
+										:key="payment.name"
+										class="mb-2 payment-item"
+										@click="selectPayment(payment)"
+										:class="{ 'selected-payment': selectedPayment?.name === payment.name }"
+									>
+										<template v-slot:prepend>
+											<v-avatar size="40" :color="getPaymentColor(payment.party_type, payment.payment_type)">
+												<v-icon color="white">
+													{{ payment.payment_type === 'Receive' ? 'mdi-cash-plus' : 'mdi-cash-minus' }}
+												</v-icon>
+											</v-avatar>
+										</template>
+										
+										<v-list-item-title class="font-weight-medium">
+											<div class="d-flex align-center">
+												<span>{{ payment.name }}</span>
+												<v-chip
+													:size="'x-small'"
+													:color="getPaymentColor(payment.party_type, payment.payment_type)"
+													class="ml-2"
+												>
+													{{ formatPaymentType(payment.party_type, payment.payment_type) }}
+												</v-chip>
+											</div>
+										</v-list-item-title>
+										
+										<v-list-item-subtitle>
+											<div class="d-flex justify-space-between align-center">
+												<span>{{ payment.party }}</span>
+												<span class="font-weight-bold" :class="payment.payment_type === 'Receive' ? 'success--text' : 'error--text'">
+													{{ payment.payment_type === 'Receive' ? '+' : '-' }}{{ formatCurrency(payment.paid_amount) }}
+												</span>
+											</div>
+											<div class="text-caption text-grey-600">
+												{{ formatDate(payment.posting_date) }} · {{ payment.mode_of_payment }}
+											</div>
+										</v-list-item-subtitle>
+										
+										<template v-slot:append>
+											<v-btn
+												icon="mdi-eye"
+												variant="text"
+												size="small"
+												@click.stop="selectPayment(payment)"
+											></v-btn>
+										</template>
+									</v-list-item>
+								</v-list>
+								
+								<v-empty-state
+									v-else-if="!loading"
+									icon="mdi-swap-horizontal"
+									title="No payment entries found"
+									text="No payment entries recorded for this shift"
+									class="my-8"
+								></v-empty-state>
 							</div>
-						</v-list-item-title>
-						
-						<v-list-item-subtitle>
-							<div class="d-flex justify-space-between align-center">
-								<span>{{ invoice.customer }}</span>
-								<span class="font-weight-bold">{{ formatCurrency(invoice.grand_total) }}</span>
+						</v-window-item>
+
+						<!-- Incoming Payments Only -->
+						<v-window-item value="incoming">
+							<div ref="incomingContainer" class="overflow-y-auto pa-2" style="max-height: 35vh">
+								<v-list v-if="incomingPayments.length > 0" class="pa-0">
+									<v-list-item
+										v-for="payment in incomingPayments"
+										:key="payment.name"
+										class="mb-2 payment-item"
+										@click="selectPayment(payment)"
+										:class="{ 'selected-payment': selectedPayment?.name === payment.name }"
+									>
+										<template v-slot:prepend>
+											<v-avatar size="40" color="success">
+												<v-icon color="white">mdi-cash-plus</v-icon>
+											</v-avatar>
+										</template>
+										
+										<v-list-item-title class="font-weight-medium">
+											<div class="d-flex align-center">
+												<span>{{ payment.name }}</span>
+												<v-chip
+													:size="'x-small'"
+													color="success"
+													class="ml-2"
+												>
+													Incoming
+												</v-chip>
+											</div>
+										</v-list-item-title>
+										
+										<v-list-item-subtitle>
+											<div class="d-flex justify-space-between align-center">
+												<span>{{ payment.party }}</span>
+												<span class="font-weight-bold success--text">
+													+{{ formatCurrency(payment.paid_amount) }}
+												</span>
+											</div>
+											<div class="text-caption text-grey-600">
+												{{ formatDate(payment.posting_date) }} · {{ payment.mode_of_payment }}
+											</div>
+										</v-list-item-subtitle>
+										
+										<template v-slot:append>
+											<v-btn
+												icon="mdi-eye"
+												variant="text"
+												size="small"
+												@click.stop="selectPayment(payment)"
+											></v-btn>
+										</template>
+									</v-list-item>
+								</v-list>
+								
+								<v-empty-state
+									v-else-if="!loading"
+									icon="mdi-cash-plus"
+									title="No incoming payments found"
+									text="No money received for this shift"
+									class="my-8"
+								></v-empty-state>
 							</div>
-							<div class="text-caption text-grey-600">
-								{{ formatDate(invoice.posting_date) }}
+						</v-window-item>
+
+						<!-- Outgoing Payments Only -->
+						<v-window-item value="outgoing">
+							<div ref="outgoingContainer" class="overflow-y-auto pa-2" style="max-height: 35vh">
+								<v-list v-if="outgoingPayments.length > 0" class="pa-0">
+									<v-list-item
+										v-for="payment in outgoingPayments"
+										:key="payment.name"
+										class="mb-2 payment-item"
+										@click="selectPayment(payment)"
+										:class="{ 'selected-payment': selectedPayment?.name === payment.name }"
+									>
+										<template v-slot:prepend>
+											<v-avatar size="40" color="error">
+												<v-icon color="white">mdi-cash-minus</v-icon>
+											</v-avatar>
+										</template>
+										
+										<v-list-item-title class="font-weight-medium">
+											<div class="d-flex align-center">
+												<span>{{ payment.name }}</span>
+												<v-chip
+													:size="'x-small'"
+													color="error"
+													class="ml-2"
+												>
+													Outgoing
+												</v-chip>
+											</div>
+										</v-list-item-title>
+										
+										<v-list-item-subtitle>
+											<div class="d-flex justify-space-between align-center">
+												<span>{{ payment.party }}</span>
+												<span class="font-weight-bold error--text">
+													-{{ formatCurrency(payment.paid_amount) }}
+												</span>
+											</div>
+											<div class="text-caption text-grey-600">
+												{{ formatDate(payment.posting_date) }} · {{ payment.mode_of_payment }}
+											</div>
+										</v-list-item-subtitle>
+										
+										<template v-slot:append>
+											<v-btn
+												icon="mdi-eye"
+												variant="text"
+												size="small"
+												@click.stop="selectPayment(payment)"
+											></v-btn>
+										</template>
+									</v-list-item>
+								</v-list>
+								
+								<v-empty-state
+									v-else-if="!loading"
+									icon="mdi-cash-minus"
+									title="No outgoing payments found"
+									text="No expenses recorded for this shift"
+									class="my-8"
+								></v-empty-state>
 							</div>
-						</v-list-item-subtitle>
-						
-						<template v-slot:append>
-							<v-btn
-								icon="mdi-eye"
-								variant="text"
-								size="small"
-								@click.stop="viewInvoice(invoice)"
-							></v-btn>
-						</template>
-					</v-list-item>
-				</v-list>
-				
-				<v-empty-state
-					v-else-if="!loading"
-					icon="mdi-receipt-text-outline"
-					title="No invoices found"
-					text="Try adjusting your filters"
-					class="my-8"
-				></v-empty-state>
-			</div>
+						</v-window-item>
+					</v-window>
+				</v-window-item>
+			</v-window>
 
 			<!-- Summary Section -->
-			<div v-if="invoices.length > 0" class="pa-3 border-top">
+			<div v-if="(activeTab === 'invoices' && invoices.length > 0) || (activeTab === 'payments' && paymentEntries.length > 0)" class="pa-3 border-top">
 				<v-card density="compact" color="grey-lighten-5" class="summary-card">
 					<v-card-text class="pa-3">
-						<v-row dense align="center">
+						<!-- Invoices Summary -->
+						<v-row dense align="center" v-if="activeTab === 'invoices'">
 							<v-col cols="12" md="4">
 								<div class="summary-item">
 									<span class="summary-label">Total Invoices:</span>
@@ -212,6 +433,36 @@
 									<span class="summary-value font-weight-bold" :class="calculateOutstandingTotal() > 0 ? 'error--text' : 'success--text'">
 										{{ formatCurrency(calculateOutstandingTotal()) }}
 									</span>
+								</div>
+							</v-col>
+						</v-row>
+						
+						<!-- Payment Entries Summary -->
+						<v-row dense align="center" v-if="activeTab === 'payments'">
+							<v-col cols="12" md="3">
+								<div class="summary-item">
+									<span class="summary-label">Incoming:</span>
+									<span class="summary-value font-weight-bold text-success">{{ incomingPayments.length }}</span>
+								</div>
+							</v-col>
+							<v-col cols="12" md="3">
+								<div class="summary-item">
+									<span class="summary-label">Outgoing:</span>
+									<span class="summary-value font-weight-bold text-error">{{ outgoingPayments.length }}</span>
+								</div>
+							</v-col>
+							<v-col cols="12" md="3">
+								<div class="summary-item">
+									<span class="summary-label">Net Flow:</span>
+									<span class="summary-value font-weight-bold" :class="calculateNetPaymentFlow() >= 0 ? 'text-success' : 'text-error'">
+										{{ calculateNetPaymentFlow() >= 0 ? '+' : '' }}{{ formatCurrency(calculateNetPaymentFlow()) }}
+									</span>
+								</div>
+							</v-col>
+							<v-col cols="12" md="3">
+								<div class="summary-item">
+									<span class="summary-label">Total Amount:</span>
+									<span class="summary-value font-weight-bold text-primary">{{ formatCurrency(calculateTotalPaymentsIn() + calculateTotalPaymentsOut()) }}</span>
 								</div>
 							</v-col>
 						</v-row>
@@ -414,10 +665,140 @@
 				</v-card-actions>
 			</v-card>
 		</v-dialog>
+
+		<!-- Payment Details Dialog -->
+		<v-dialog v-model="showPaymentDetailsDialog" max-width="600px" persistent>
+			<v-card class="payment-details-dialog">
+				<v-card-title class="d-flex align-center pa-4">
+					<v-icon class="mr-2" color="error">mdi-cash-minus</v-icon>
+					<span class="text-h6">Payment Entry Details</span>
+					<v-spacer></v-spacer>
+					<v-btn
+						icon="mdi-close"
+						variant="text"
+						@click="showPaymentDetailsDialog = false"
+					></v-btn>
+				</v-card-title>
+				
+				<v-divider></v-divider>
+				
+				<v-card-text class="pa-4" v-if="selectedPayment">
+					<v-row dense>
+						<v-col cols="12" md="6">
+							<div class="detail-section">
+								<div class="section-header">
+									<v-icon size="small" class="mr-1" :color="selectedPayment.payment_type === 'Receive' ? 'success' : 'error'">
+										{{ selectedPayment.payment_type === 'Receive' ? 'mdi-cash-plus' : 'mdi-cash-minus' }}
+									</v-icon>
+									<span class="section-title">Payment Information</span>
+								</div>
+								<div class="section-content">
+									<div class="detail-row">
+										<span class="detail-label">Payment #:</span>
+										<span class="detail-value font-weight-medium">{{ selectedPayment.name }}</span>
+									</div>
+									<div class="detail-row">
+										<span class="detail-label">Date:</span>
+										<span class="detail-value">{{ formatDate(selectedPayment.posting_date) }}</span>
+									</div>
+									<div class="detail-row">
+										<span class="detail-label">Payment Type:</span>
+										<v-chip
+											:size="x-small"
+											:color="selectedPayment.payment_type === 'Receive' ? 'success' : 'error'"
+											class="ml-2"
+										>
+											{{ selectedPayment.payment_type === 'Receive' ? 'Incoming' : 'Outgoing' }}
+										</v-chip>
+									</div>
+								</div>
+							</div>
+						</v-col>
+						
+						<v-col cols="12" md="6">
+							<div class="detail-section">
+								<div class="section-header">
+									<v-icon size="small" class="mr-1" color="primary">mdi-account</v-icon>
+									<span class="section-title">Party Information</span>
+								</div>
+								<div class="section-content">
+									<div class="detail-row">
+										<span class="detail-label">Party Type:</span>
+										<span class="detail-value font-weight-medium">{{ selectedPayment.party_type }}</span>
+									</div>
+									<div class="detail-row">
+										<span class="detail-label">Party:</span>
+										<span class="detail-value font-weight-medium">{{ selectedPayment.party }}</span>
+									</div>
+								</div>
+							</div>
+						</v-col>
+						
+						<v-col cols="12">
+							<div class="detail-section">
+								<div class="section-header">
+									<v-icon size="small" class="mr-1" color="primary">mdi-currency</v-icon>
+									<span class="section-title">Financial Information</span>
+								</div>
+								<div class="section-content">
+									<div class="detail-row">
+										<span class="detail-label">Amount:</span>
+										<span class="detail-value font-weight-bold text-h6" :class="selectedPayment.payment_type === 'Receive' ? 'success--text' : 'error--text'">
+											{{ selectedPayment.payment_type === 'Receive' ? '+' : '-' }}{{ formatCurrency(selectedPayment.paid_amount) }}
+										</span>
+									</div>
+									<div class="detail-row">
+										<span class="detail-label">Mode of Payment:</span>
+										<span class="detail-value font-weight-medium">{{ selectedPayment.mode_of_payment }}</span>
+									</div>
+								</div>
+							</div>
+						</v-col>
+						
+						<v-col cols="12" v-if="selectedPayment.remarks || selectedPayment.custom_remark">
+							<div class="detail-section">
+								<div class="section-header">
+									<v-icon size="small" class="mr-1" color="primary">mdi-text</v-icon>
+									<span class="section-title">Remarks</span>
+								</div>
+								<div class="section-content">
+									<div class="detail-row">
+										<span class="detail-value">{{ selectedPayment.custom_remark || selectedPayment.remarks || 'No remarks' }}</span>
+									</div>
+								</div>
+							</div>
+						</v-col>
+					</v-row>
+				</v-card-text>
+				
+				<v-divider></v-divider>
+				
+				<v-card-actions class="pa-4">
+					<v-btn
+						color="info"
+						variant="outlined"
+						@click="viewPaymentEntry(selectedPayment)"
+						class="action-btn"
+					>
+						<v-icon left>mdi-eye</v-icon>
+						View Full
+					</v-btn>
+					<v-spacer></v-spacer>
+					<v-btn
+						color="grey"
+						variant="text"
+						@click="showPaymentDetailsDialog = false"
+					>
+						Close
+					</v-btn>
+				</v-card-actions>
+			</v-card>
+		</v-dialog>
 			<!-- Summary Bottom Bar -->
 			<v-divider></v-divider>
 			<div class="summary-bar pa-3">
-				<v-row dense align="center">
+				<!-- Invoices Summary Bar -->
+				<v-row dense align="center" v-if="activeTab === 'invoices'">
 					<v-col cols="12" md="4" class="d-flex align-center">
 						<v-icon size="small" color="grey-darken-1" class="mr-1">mdi-receipt-text</v-icon>
 						<span class="text-body-2 text-grey-darken-1 mr-1">Total Invoices:</span>
@@ -434,6 +815,32 @@
 						<span class="font-weight-bold text-body-1 text-green">{{ formatCurrency(paidTotal) }}</span>
 					</v-col>
 				</v-row>
+				
+				<!-- Payment Entries Summary Bar -->
+				<v-row dense align="center" v-if="activeTab === 'payments'">
+					<v-col cols="12" md="3" class="d-flex align-center">
+						<v-icon size="small" color="success" class="mr-1">mdi-cash-plus</v-icon>
+						<span class="text-body-2 text-grey-darken-1 mr-1">Incoming:</span>
+						<span class="font-weight-bold text-body-2 text-success">{{ incomingPayments.length }}</span>
+					</v-col>
+					<v-col cols="12" md="3" class="d-flex align-center">
+						<v-icon size="small" color="error" class="mr-1">mdi-cash-minus</v-icon>
+						<span class="text-body-2 text-grey-darken-1 mr-1">Outgoing:</span>
+						<span class="font-weight-bold text-body-2 text-error">{{ outgoingPayments.length }}</span>
+					</v-col>
+					<v-col cols="12" md="3" class="d-flex align-center">
+						<v-icon size="small" color="blue" class="mr-1">mdi-swap-horizontal</v-icon>
+						<span class="text-body-2 text-grey-darken-1 mr-1">Net Flow:</span>
+						<span class="font-weight-bold text-body-2" :class="calculateNetPaymentFlow() >= 0 ? 'text-success' : 'text-error'">
+							{{ calculateNetPaymentFlow() >= 0 ? '+' : '' }}{{ formatCurrency(calculateNetPaymentFlow()) }}
+						</span>
+					</v-col>
+					<v-col cols="12" md="3" class="d-flex align-center justify-md-end">
+						<v-icon size="small" color="primary" class="mr-1">mdi-cash-multiple</v-icon>
+						<span class="text-body-2 text-grey-darken-1 mr-1">Total:</span>
+						<span class="font-weight-bold text-body-1 text-primary">{{ paymentEntries.length }}</span>
+					</v-col>
+				</v-row>
 			</div>
 
 		</v-card>
@@ -443,15 +850,22 @@
 <script>
 /* global frappe */
 import { getCurrentInstance } from 'vue';
+import { usePosShift } from '../../composables/usePosShift.js';
+import { getOpeningStorage } from '../../../offline/index.js';
 
 export default {
 	data() {
 		return {
 			loading: false,
 			invoices: [],
+			paymentEntries: [], // New array for payment entries
 			invoiceItems: {}, // Reactive map for invoice items
 			selectedInvoice: null,
+			selectedPayment: null, // New selected payment
 			showDetailsDialog: false,
+			showPaymentDetailsDialog: false, // New dialog for payment details
+			activeTab: 'invoices', // New active tab property
+			activePaymentTab: 'all', // New active payment tab property
 			filters: {
 				from_date: '',
 				to_date: '',
@@ -477,22 +891,33 @@ export default {
 		this.eventBus = instance?.proxy?.eventBus || instance?.appContext?.config?.globalProperties?.$eventBus;
 		this.setDefaultDates();
 		this.loadInvoices();
+		this.loadPaymentEntries(); // Load payment entries
 	},
 
 	computed: {
+		// Computed properties for payment filtering
+		filteredPaymentEntries() {
+			return this.paymentEntries;
+		},
+		
+		incomingPayments() {
+			return this.paymentEntries.filter(payment => payment.payment_type === 'Receive');
+		},
+		
+		outgoingPayments() {
+			return this.paymentEntries.filter(payment => payment.payment_type === 'Pay');
+		},
+		
 		totalInvoices() {
 			return this.invoices.length;
 		},
+		paidCount() {
+			return this.invoices.filter(inv => inv.status === 'Paid').length;
+		},
 		paidTotal() {
 			return this.invoices
-				.filter(inv => inv.status === 'Paid' || inv.status === 'Partially Paid')
-				.reduce((sum, inv) => {
-					const received = (inv.grand_total || 0) - (inv.outstanding_amount || 0);
-					return sum + received;
-				}, 0);
-		},
-		paidCount() {
-			return this.invoices.filter(inv => inv.status === 'Paid' || inv.status === 'Partially Paid').length;
+				.filter(inv => inv.status === 'Paid' || inv.status === 'Partly Paid')
+				.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
 		},
 		currentItems() {
 			if (!this.selectedInvoice) return undefined;
@@ -521,6 +946,15 @@ export default {
 			try {
 				const filters = this.buildFilters();
 				
+				// Get current POS profile and shift info
+				const posData = this.getCurrentPosData();
+				if (posData.pos_profile) {
+					filters.push(['pos_profile', '=', posData.pos_profile]);
+				}
+				if (posData.pos_opening_shift) {
+					filters.push(['posa_pos_opening_shift', '=', posData.pos_opening_shift]);
+				}
+				
 				// Search for Sales Invoices with custom_is_reserve filter
 				const result = await frappe.call({
 					method: 'frappe.client.get_list',
@@ -529,7 +963,7 @@ export default {
 						fields: [
 							'name', 'customer', 'posting_date', 'grand_total',
 							'status', 'remarks', 'currency', 'outstanding_amount', 'custom_barcode', 'custom_is_reserve',
-							'creation', 'modified'
+							'creation', 'modified', 'pos_profile', 'posa_pos_opening_shift'
 						],
 						filters: filters,
 						order_by: 'posting_date desc, creation desc',
@@ -564,6 +998,78 @@ export default {
 			} finally {
 				this.loading = false;
 			}
+		},
+
+		// New method to load payment entries
+		async loadPaymentEntries() {
+			try {
+				const posData = this.getCurrentPosData();
+				const filters = [];
+				
+				// Filter by date range
+				if (this.filters.from_date) {
+					filters.push(['posting_date', '>=', this.filters.from_date]);
+				}
+				if (this.filters.to_date) {
+					filters.push(['posting_date', '<=', this.filters.to_date]);
+				}
+				
+				// Filter by POS opening shift if available
+				if (posData.pos_opening_shift) {
+					filters.push(['reference_no', '=', posData.pos_opening_shift]);
+				}
+				
+				// Get both incoming (Receive) and outgoing (Pay) payments
+				filters.push(['payment_type', 'in', ['Pay', 'Receive']]);
+				filters.push(['docstatus', '=', 1]); // Only submitted payments
+				
+				const result = await frappe.call({
+					method: 'frappe.client.get_list',
+					args: {
+						doctype: 'Payment Entry',
+						fields: [
+							'name', 'party_type', 'party', 'posting_date', 'paid_amount',
+							'mode_of_payment', 'remarks', 'custom_remark', 'reference_no',
+							'creation', 'modified', 'payment_type'
+						],
+						filters: filters,
+						order_by: 'posting_date desc, creation desc',
+						limit_page_length: 200
+					}
+				});
+
+				this.paymentEntries = result.message || [];
+			} catch (error) {
+				console.error('Failed to load payment entries:', error);
+				this.paymentEntries = [];
+			}
+		},
+
+		// New method to get current POS data
+		getCurrentPosData() {
+			// Try to get from composable first
+			const { pos_profile, pos_opening_shift } = usePosShift();
+			
+			let posProfile = pos_profile?.value;
+			let posOpeningShift = pos_opening_shift?.value;
+			
+			// Fallback to storage
+			if (!posProfile || !posOpeningShift) {
+				try {
+					const storageData = getOpeningStorage();
+					if (storageData) {
+						posProfile = posProfile || storageData.pos_profile;
+						posOpeningShift = posOpeningShift || storageData.pos_opening_shift;
+					}
+				} catch (e) {
+					console.warn('Failed to get POS data from storage:', e);
+				}
+			}
+			
+			return {
+				pos_profile: posProfile?.name || posProfile,
+				pos_opening_shift: posOpeningShift?.name || posOpeningShift
+			};
 		},
 
 		parseVariantInfo(itemName, itemCode) {
@@ -764,6 +1270,7 @@ export default {
 			};
 			this.setDefaultDates();
 			this.loadInvoices();
+			this.loadPaymentEntries(); // Reload payment entries
 		},
 
 		selectInvoice(invoice) {
@@ -771,6 +1278,12 @@ export default {
 			this.showDetailsDialog = true;
 			// Lazy-load items only when popup opens
 			this.loadItemsForInvoice(invoice.name);
+		},
+
+		// New method to select payment entry
+		selectPayment(payment) {
+			this.selectedPayment = payment;
+			this.showPaymentDetailsDialog = true;
 		},
 
 		viewInvoice(invoice) {
@@ -782,6 +1295,13 @@ export default {
 		printInvoice(invoice) {
 			// Trigger print functionality
 			const url = `/printview?doctype=Sales%20Invoice&name=${invoice.name}&format=Standard&trigger_print=1`;
+			window.open(url, '_blank');
+		},
+
+		// New method to view payment entry
+		viewPaymentEntry(payment) {
+			// Open payment entry in new tab or modal
+			const url = `/app/payment-entry/${payment.name}`;
 			window.open(url, '_blank');
 		},
 
@@ -839,6 +1359,45 @@ export default {
 			}, 0);
 		},
 
+		// New method to calculate total payments out
+		calculateTotalPaymentsOut() {
+			return this.outgoingPayments.reduce((total, payment) => {
+				return total + (payment.paid_amount || 0);
+			}, 0);
+		},
+
+		// New method to calculate total payments in
+		calculateTotalPaymentsIn() {
+			return this.incomingPayments.reduce((total, payment) => {
+				return total + (payment.paid_amount || 0);
+			}, 0);
+		},
+
+		// New method to calculate net payment flow (incoming - outgoing)
+		calculateNetPaymentFlow() {
+			return this.calculateTotalPaymentsIn() - this.calculateTotalPaymentsOut();
+		},
+
+		// New method to format payment type
+		formatPaymentType(partyType, paymentType) {
+			if (paymentType === 'Receive') {
+				return 'Incoming Payment';
+			} else if (paymentType === 'Pay') {
+				return partyType === 'Employee' ? 'Employee Payment' : 'Supplier Payment';
+			}
+			return 'Payment';
+		},
+
+		// New method to get payment color
+		getPaymentColor(partyType, paymentType) {
+			if (paymentType === 'Receive') {
+				return 'success';
+			} else if (paymentType === 'Pay') {
+				return partyType === 'Employee' ? 'orange' : 'red';
+			}
+			return 'grey';
+		},
+
 
 	}
 };
@@ -861,6 +1420,24 @@ export default {
 .selected-invoice {
 	background-color: #e3f2fd;
 	border-color: #2196f3;
+}
+
+.payment-item {
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+	transition: all 0.2s ease;
+	cursor: pointer;
+}
+
+.payment-item:hover {
+	background-color: #fff3f3;
+	transform: translateY(-1px);
+	box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.selected-payment {
+	background-color: #ffebee;
+	border-color: #f44336;
 }
 
 .border-top {
