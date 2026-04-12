@@ -218,6 +218,10 @@ fixtures = [
                     "POS Invoice-posa_is_printed",
                     "Sales Invoice-posa_is_printed",
                     "Sales Invoice-custom_barcode",
+                    "Sales Invoice-custom_reservation_status",
+                    "Sales Invoice-custom_is_reserve",
+                    "Stock Entry-custom_sales_invoice",
+                    "POS Profile-custom_pos_pin_code",
 
                     "Sales Invoice Reference-pos_invoice",
                     "POS Profile-posa_local_storage",
