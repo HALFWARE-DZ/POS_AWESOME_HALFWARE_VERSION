@@ -31,6 +31,18 @@
 								clearable
 							></v-text-field>
 						</v-col>
+						<v-col cols="12" sm="6">
+							<v-text-field
+								color="primary"
+								:label="frappe._('Barcode')"
+								class="pos-themed-input"
+								hide-details
+								v-model="barcode"
+								density="compact"
+								clearable
+								prepend-inner-icon="mdi-barcode"
+							></v-text-field>
+						</v-col>
 						<v-col cols="12" sm="3">
 							<VueDatePicker
 								v-model="from_date"
@@ -264,6 +276,7 @@ export default {
 		dialog_data: [],
 		company: "",
 		invoice_name: "",
+		barcode: "",
 		customer_name: "",
 		customer_id: "",
 		mobile_no: "",
@@ -320,6 +333,24 @@ export default {
 		},
 		to_date() {
 			this.formatToDate();
+		},
+		barcode(newVal, oldVal) {
+			// Auto-search when barcode is entered and has sufficient length
+			if (newVal && newVal.length >= 3) {
+				// Clear other search fields when barcode is entered
+				this.invoice_name = "";
+				this.customer_name = "";
+				this.customer_id = "";
+				this.mobile_no = "";
+				this.tax_id = "";
+				
+				// Auto-search after a short delay to allow typing
+				this.$nextTick(() => {
+					setTimeout(() => {
+						this.search_invoices();
+					}, 500);
+				});
+			}
 		},
 	},
 	methods: {
@@ -426,6 +457,7 @@ export default {
 		},
 		clear_search() {
 			this.invoice_name = "";
+			this.barcode = "";
 			this.customer_name = "";
 			this.customer_id = "";
 			this.mobile_no = "";
@@ -530,6 +562,7 @@ export default {
 			// Save current search parameters for "load more" functionality
 			this.current_search_params = {
 				invoice_name: vm.invoice_name,
+				barcode: vm.barcode,
 				customer_name: vm.customer_name,
 				customer_id: vm.customer_id,
 				mobile_no: vm.mobile_no,
@@ -684,6 +717,7 @@ export default {
 			this.invoicesDialog = true;
 			this.company = data;
 			this.invoice_name = "";
+			this.barcode = "";
 			this.customer_name = "";
 			this.customer_id = "";
 			this.mobile_no = "";

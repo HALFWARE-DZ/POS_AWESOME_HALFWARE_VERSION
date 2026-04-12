@@ -79,31 +79,16 @@
 						/>
 					</v-col>
 
-					<!-- Total (moved to maintain row alignment) -->
+					<!-- Total (Editable) -->
 					<v-col cols="6">
 						<v-text-field
-							:model-value="formatCurrency(subtotal)"
-							:prefix="currencySymbol(displayCurrency)"
+							ref="totalField"
+							v-model="editableTotalDisplay"
+							@update:model-value="handleTotalUpdate"
+							@focus="handleTotalFocus"
+							@blur="handleTotalBlur"
 							:label="frappe._('Total')"
 							prepend-inner-icon="mdi-cash"
-							variant="solo"
-							density="compact"
-							readonly
-							color="success"
-							class="summary-field"
-						/>
-					</v-col>
-
-					<!-- Final Total (Editable) -->
-					<v-col cols="6">
-						<v-text-field
-							ref="finalTotalField"
-							v-model="editableFinalTotalDisplay"
-							@update:model-value="handleFinalTotalUpdate"
-							@focus="handleFinalTotalFocus"
-							@blur="handleFinalTotalBlur"
-							:label="frappe._('Final Total')"
-							prepend-inner-icon="mdi-cash-check"
 							variant="solo"
 							density="compact"
 							color="primary"
@@ -261,8 +246,8 @@ export default {
 			additionalDiscountPercentageDisplay: null,
 			isEditingAdditionalDiscount: false,
 			isEditingAdditionalDiscountPercentage: false,
-			editableFinalTotalDisplay: null,
-			isEditingFinalTotal: false,
+			editableTotalDisplay: null,
+			isEditingTotal: false,
 		};
 	},
 	emits: [
@@ -308,9 +293,9 @@ export default {
 			}
 		},
 		originalGrandTotal(newVal) {
-			// Update editable final total when original changes, but only if not editing
-			if (!this.isEditingFinalTotal && newVal !== undefined) {
-				this.editableFinalTotalDisplay = this.normalizeDiscountDisplay(newVal);
+			// Update editable total when original changes, but only if not editing
+			if (!this.isEditingTotal && newVal !== undefined) {
+				this.editableTotalDisplay = this.normalizeDiscountDisplay(newVal);
 			}
 		},
 	},
@@ -319,8 +304,8 @@ export default {
 		this.additionalDiscountPercentageDisplay = this.normalizeDiscountDisplay(
 			this.additional_discount_percentage,
 		);
-		// Initialize editable final total with current grand total
-		this.editableFinalTotalDisplay = this.normalizeDiscountDisplay(this.originalGrandTotal);
+		// Initialize editable total with current grand total
+		this.editableTotalDisplay = this.normalizeDiscountDisplay(this.originalGrandTotal);
 	},
 	methods: {
 		normalizeDiscountDisplay(value) {
@@ -437,17 +422,17 @@ export default {
 			}
 		},
 
-		// Final Total editing handlers
-		handleFinalTotalUpdate(value) {
+		// Total editing handlers
+		handleTotalUpdate(value) {
 			this.calculateAndApplyDiscount(value);
 		},
 
-		handleFinalTotalFocus() {
-			this.isEditingFinalTotal = true;
+		handleTotalFocus() {
+			this.isEditingTotal = true;
 		},
 
-		handleFinalTotalBlur() {
-			this.isEditingFinalTotal = false;
+		handleTotalBlur() {
+			this.isEditingTotal = false;
 		},
 
 		calculateAndApplyDiscount(newTotal) {
@@ -461,7 +446,7 @@ export default {
 			
 			if (parsedNewTotal <= 0) {
 				// Reset to original if invalid
-				this.editableFinalTotalDisplay = this.normalizeDiscountDisplay(baseTotal);
+				this.editableTotalDisplay = this.normalizeDiscountDisplay(baseTotal);
 				this.$emit("update:additional_discount", 0);
 				return;
 			}
