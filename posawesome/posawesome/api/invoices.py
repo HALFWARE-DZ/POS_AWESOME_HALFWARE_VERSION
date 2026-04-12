@@ -76,10 +76,12 @@ def _set_return_valid_upto(invoice_doc, enabled, default_days):
         return
 
     posting_date = getdate(invoice_doc.get("posting_date") or nowdate())
+    # Use 10 days as default when no specific days are configured
     if default_days:
         invoice_doc.posa_return_valid_upto = add_days(posting_date, default_days)
     else:
-        invoice_doc.posa_return_valid_upto = posting_date
+        # Default to 10 days from posting date when no configuration exists
+        invoice_doc.posa_return_valid_upto = add_days(posting_date, 10)
 
 
 def _validate_return_window(invoice_doc, doctype, enabled):
@@ -742,11 +744,19 @@ def update_invoice(data):
     # For return invoices, payments should be negative amounts
     if invoice_doc.is_return:
         for payment in invoice_doc.payments:
-            payment.amount = -abs(payment.amount)
-            payment.base_amount = -abs(payment.base_amount)
+            # Add null checks to prevent TypeError when amount is None
+            if payment.amount is not None:
+                payment.amount = -abs(payment.amount)
+            else:
+                payment.amount = 0
+            
+            if payment.base_amount is not None:
+                payment.base_amount = -abs(payment.base_amount)
+            else:
+                payment.base_amount = 0
 
-        invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
-        invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
+        invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments if p.amount is not None))
+        invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments if p.base_amount is not None))
 
     invoice_doc.flags.ignore_permissions = True
     frappe.flags.ignore_account_permission = True
@@ -1186,6 +1196,7 @@ def search_invoices_for_return(
     customer_id=None,
     mobile_no=None,
     tax_id=None,
+    barcode=None,
     from_date=None,
     to_date=None,
     min_amount=None,
@@ -1204,6 +1215,7 @@ def search_invoices_for_return(
         customer_id: Customer ID to search for
         mobile_no: Mobile number to search for
         tax_id: Tax ID to search for
+        barcode: Barcode to search for (searches in custom_barcode field of invoice items)
         from_date: Start date for filtering
         to_date: End date for filtering
         min_amount: Minimum invoice amount to filter by
@@ -1298,6 +1310,59 @@ def search_invoices_for_return(
             filters["customer"] = ["in", customer_ids]
         # If customer search criteria provided but no matches found, return empty
         elif any([customer_name, customer_id, mobile_no, tax_id]):
+            return {"invoices": [], "has_more": False}
+
+    # If barcode search criteria is provided, find matching invoices
+    if barcode:
+        # Search for invoices with the specified barcode in the main document
+        barcode_filters = {
+            "custom_barcode": ["like", f"%{barcode}%"],
+            "docstatus": 1,
+            "is_return": 0,
+            "company": company
+        }
+        
+        # Add date range filters to barcode search if provided
+        if from_date:
+            barcode_filters["posting_date"] = [">=", from_date]
+        
+        if to_date:
+            if "posting_date" in barcode_filters:
+                barcode_filters["posting_date"] = ["between", [from_date, to_date]]
+            else:
+                barcode_filters["posting_date"] = ["<=", to_date]
+        
+        # Add amount filters to barcode search if provided
+        if min_amount:
+            barcode_filters["grand_total"] = [">=", float(min_amount)]
+        
+        if max_amount:
+            if "grand_total" in barcode_filters:
+                barcode_filters["grand_total"] = ["between", [float(min_amount), float(max_amount)]]
+            else:
+                barcode_filters["grand_total"] = ["<=", float(max_amount)]
+        
+        # Get invoices matching barcode and other criteria
+        barcode_invoices = frappe.get_list(
+            doctype,
+            filters=barcode_filters,
+            fields=["name"],
+            limit_start=start,
+            limit_page_length=page_length,
+            order_by="posting_date desc, name desc",
+        )
+        
+        if barcode_invoices:
+            barcode_invoice_names = [inv.name for inv in barcode_invoices]
+            
+            # Add barcode filter to existing filters
+            if "name" in filters:
+                # If invoice name filter already exists, combine with barcode filter
+                filters["name"] = ["and", ["like", f"%{invoice_name}%"], ["in", barcode_invoice_names]]
+            else:
+                filters["name"] = ["in", barcode_invoice_names]
+        else:
+            # Barcode provided but no matches found
             return {"invoices": [], "has_more": False}
 
     # Count total invoices matching the criteria (for has_more flag)
