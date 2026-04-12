@@ -226,6 +226,17 @@ export default {
 			this.eventBus.on("change-page", (page) => {
 				this.changePage(page);
 			});
+
+			// Re-focus the POS search input when window regains focus after print or tab switch
+			this._handleWindowFocus = () => {
+				this.$nextTick(() => {
+					const input = document.querySelector('.v-field__input input, [data-fieldname="search_term"] input, .pos input[type="text"]');
+					if (input && !document.activeElement?.closest('.v-dialog--active')) {
+						input.focus();
+					}
+				});
+			};
+			window.addEventListener('focus', this._handleWindowFocus);
 		});
 	},
 	beforeUnmount() {
@@ -238,6 +249,9 @@ export default {
 		this.eventBus.off("show_coupons");
 		this.eventBus.off("submit_closing_pos");
 		this.eventBus.off("items_loaded");
+		if (this._handleWindowFocus) {
+			window.removeEventListener('focus', this._handleWindowFocus);
+		}
 	},
 	// In the created() or mounted() lifecycle hook
 	created() {
