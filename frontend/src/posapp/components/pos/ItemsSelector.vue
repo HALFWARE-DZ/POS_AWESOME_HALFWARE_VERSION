@@ -1056,12 +1056,13 @@ export default {
 			if (val) {
 				this.eventBus.emit("itemsLoaded");
 				this.eventBus.emit("data-loaded", "items");
-				// Refresh reserved stock data when items are loaded
-				// Use a longer delay to ensure items are properly displayed
+				// Wait for displayedItems to be populated and DOM to render
 				this.$nextTick(() => {
 					setTimeout(() => {
-						this.refreshReservedStockData();
-					}, 200);
+						if (this.pos_profile?.warehouse && this.displayedItems.length > 0) {
+							this.refreshReservedStockData();
+						}
+					}, 500); // increased from 200 to 500ms
 				});
 			}
 		},
@@ -5089,6 +5090,12 @@ export default {
 			this.get_items_groups();
 			await this.initializeItems();
 			this.items_view = this.pos_profile.posa_default_card_view ? "card" : "list";
+			
+			// ADD THIS: start auto-refresh now that we have a valid warehouse
+			if (this.pos_profile.warehouse) {
+				this.startReservedStockAutoRefresh();
+				// Items will be loaded soon - the itemsLoaded watcher will trigger the first fetch
+			}
 		});
 		this.eventBus.on("update_cur_items_details", () => {
 			this.update_cur_items_details();
@@ -5243,9 +5250,15 @@ export default {
 		});
 
 		// Initialize reserved stock data and auto-refresh
+		// DON'T call refreshReservedStockData() here directly.
+		// The itemsLoaded watcher already handles it with a delay.
+		// We only start the auto-refresh timer here.
 		if (this.pos_profile && this.pos_profile.warehouse) {
-			this.refreshReservedStockData();
 			this.startReservedStockAutoRefresh();
+			// Only refresh now if items are already loaded (e.g. hot reload / second open)
+			if (this.itemsLoaded && this.displayedItems.length > 0) {
+				this.refreshReservedStockData();
+			}
 		}
 	},
 
