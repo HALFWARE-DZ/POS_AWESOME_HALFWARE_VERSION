@@ -6,6 +6,7 @@ from frappe import _
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Sum
 from frappe.utils import getdate, formatdate
+from .utils import get_reserve_warehouse_from_pos_profile
 
 
 @frappe.whitelist()
@@ -86,7 +87,11 @@ def get_reserved_details(item_code, main_warehouse):
         tuple: (total_reserved_qty, reserved_list)
     """
     try:
-        reserved_warehouse = "RESERVE - MT"
+        # Get reserve warehouse from POS profile
+        reserved_warehouse = get_reserve_warehouse_from_pos_profile()
+        if not reserved_warehouse:
+            frappe.logger().warning("No reserve warehouse found in POS profile, using default")
+            reserved_warehouse = "RESERVE - MT"  # Fallback to default
         
         # Query Stock Entries that transfer from main warehouse to reserve warehouse
         StockEntry = DocType("Stock Entry")

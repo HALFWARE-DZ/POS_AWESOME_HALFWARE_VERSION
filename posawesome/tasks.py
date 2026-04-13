@@ -1,5 +1,6 @@
 import frappe
 from frappe.utils import nowdate, getdate
+from posawesome.posawesome.api.utils import get_reserve_warehouse_from_pos_profile
 
 def expire_old_reservations():
     """Check for expired reservations and auto-return stock"""
@@ -21,6 +22,12 @@ def expire_old_reservations():
             # Create Stock Entry to return items from RESERVE to original warehouse
             invoice = frappe.get_doc("Sales Invoice", reservation.name)
             
+            # Get reserve warehouse from POS profile
+            reserve_warehouse = get_reserve_warehouse_from_pos_profile()
+            if not reserve_warehouse:
+                frappe.logger().warning("No reserve warehouse found in POS profile, using default")
+                reserve_warehouse = "RESERVE - MT"  # Fallback to default
+            
             se = frappe.new_doc("Stock Entry")
             se.stock_entry_type = "Material Transfer"
             se.set_posting_time = 1
@@ -34,14 +41,14 @@ def expire_old_reservations():
                     "Bin",
                     {
                         "item_code": item.item_code,
-                        "warehouse": "RESERVE - MT"
+                        "warehouse": reserve_warehouse
                     },
                     "valuation_rate"
                 ) or item.rate or 1
                 
                 se.append("items", {
                     "item_code": item.item_code,
-                    "s_warehouse": "RESERVE - MT",      # From reserve
+                    "s_warehouse": reserve_warehouse,      # From reserve
                     "t_warehouse": item.warehouse,      # Back to original (Finished Goods)
                     "qty": item.qty,                   # Positive qty
                     "uom": item.uom,

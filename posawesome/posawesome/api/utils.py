@@ -79,6 +79,33 @@ def get_default_warehouse(company=None):
     return warehouse
 
 
+def get_reserve_warehouse_from_pos_profile():
+    """
+    Get the reserve warehouse from the active POS profile.
+    
+    Returns:
+        str: The reserve warehouse name from custom_entrepôt_reserve field, or None if not found
+    """
+    try:
+        # Get active POS profile
+        pos_profile = get_active_pos_profile()
+        if not pos_profile:
+            return None
+            
+        # Get the warehouse from POS profile
+        warehouse = pos_profile.get("warehouse")
+        if not warehouse:
+            return None
+            
+        # Get the reserve warehouse from the warehouse's custom_entrepôt_reserve field
+        reserve_warehouse = frappe.db.get_value("Warehouse", warehouse, "custom_entrepot_reserve")
+        return reserve_warehouse
+        
+    except Exception as e:
+        frappe.logger().error(f"Error getting reserve warehouse from POS profile: {str(e)}")
+        return None
+
+
 def fetch_sales_person_names():
     """Return the list of enabled sales persons allowed for the active POS profile."""
 

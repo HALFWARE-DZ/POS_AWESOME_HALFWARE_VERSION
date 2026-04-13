@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from frappe.utils import flt
+from .utils import get_reserve_warehouse_from_pos_profile
 
 @frappe.whitelist()
 def complete_reservation(reservation_invoice_name, payments_data):
@@ -45,6 +46,12 @@ def complete_reservation(reservation_invoice_name, payments_data):
         reservation.flags.ignore_validate_update_after_submit = True
         reservation.save()
         
+        # Get reserve warehouse from POS profile
+        reserve_warehouse = get_reserve_warehouse_from_pos_profile()
+        if not reserve_warehouse:
+            frappe.logger().warning("No reserve warehouse found in POS profile, using default")
+            reserve_warehouse = "RESERVE - MT"  # Fallback to default
+        
         # Create Stock Entry: RESERVE → OUT (customer delivery)
         se = frappe.new_doc("Stock Entry")
         se.stock_entry_type = "Material Issue"  # Issue stock (not transfer)
@@ -55,13 +62,13 @@ def complete_reservation(reservation_invoice_name, payments_data):
         for item in reservation.items:
             valuation_rate = frappe.db.get_value(
                 "Bin",
-                {"item_code": item.item_code, "warehouse": "RESERVE - MT"},
+                {"item_code": item.item_code, "warehouse": reserve_warehouse},
                 "valuation_rate"
             ) or item.rate or 1
             
             se.append("items", {
                 "item_code": item.item_code,
-                "s_warehouse": "RESERVE - MT",  # From reserve, no target (delivered to customer)
+                "s_warehouse": reserve_warehouse,  # From reserve, no target (delivered to customer)
                 "qty": item.qty,
                 "uom": item.uom,
                 "basic_rate": valuation_rate,

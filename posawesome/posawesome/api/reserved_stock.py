@@ -6,6 +6,7 @@ from frappe import _
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Sum
 from frappe.query_builder import Order
+from .utils import get_reserve_warehouse_from_pos_profile
 
 
 @frappe.whitelist()
@@ -53,8 +54,12 @@ def get_reserved_stock_info(item_code, warehouse):
     available_qty = get_available_quantity(item_code, warehouse)
     frappe.logger().info(f"DEBUG: Available qty in {warehouse}: {available_qty}")
     
-    # Get reserved quantity in "RESERVE - HW" warehouse
-    reserve_warehouse = "RESERVE - MT"
+    # Get reserve warehouse from POS profile
+    reserve_warehouse = get_reserve_warehouse_from_pos_profile()
+    if not reserve_warehouse:
+        frappe.logger().warning("No reserve warehouse found in POS profile, using default")
+        reserve_warehouse = "RESERVE - MT"  # Fallback to default
+    
     reserved_qty = get_reserved_quantity(item_code, reserve_warehouse)
     frappe.logger().info(f"DEBUG: Reserved qty in {reserve_warehouse}: {reserved_qty}")
     
