@@ -2364,6 +2364,10 @@ export default {
 
 			// Validate item before adding to cart
 			const requestedQty = this.qty != null ? Math.abs(this.qty) : 1;
+			
+			// Get reserved stock data for accurate validation
+			const reservedStockData = this.getReservedStockForItem(item);
+			
 			const isValid = await this.cartValidation.validateCartItem(
 				item,
 				requestedQty,
@@ -2373,6 +2377,7 @@ export default {
 				this.blockSaleBeyondAvailableQty,
 				!suppressNegativeWarning,
 				true, // Skip server-side validation for instant add
+				reservedStockData, // Pass reserved stock data for accurate validation
 			);
 
 			if (!isValid) {

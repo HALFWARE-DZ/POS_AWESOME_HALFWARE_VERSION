@@ -22,6 +22,7 @@ export function useCartValidation() {
 	 * @param {Object} stockSettings - Stock settings
 	 * @param {Object} eventBus - Event bus for notifications
 	 * @param {boolean} blockSaleBeyondAvailableQty - Block sales beyond available quantity
+	 * @param {Object} reservedStockData - Reserved stock data for the item (optional)
 	 * @returns {Promise<boolean>} - Returns true if item can be added, false otherwise
 	 */
 	async function validateCartItem(
@@ -33,6 +34,7 @@ export function useCartValidation() {
 		blockSaleBeyondAvailableQty = false,
 		showNegativeStockWarning = true,
 		skipServerValidation = false,
+		reservedStockData = null,
 	) {
 		isValidating.value = true;
 		validationError.value = null;
@@ -54,11 +56,28 @@ export function useCartValidation() {
 				return false;
 			}
 
-			// Step 3: Zero stock validation (if enabled)
-			if (item.actual_qty === 0 && posProfile?.posa_display_items_in_stock) {
+			// Step 3: Get available quantity after reservations
+			let availableQty = item.actual_qty;
+			let reservedQty = 0;
+			
+			// Use reserved stock data if provided to get accurate available quantity
+			if (reservedStockData && typeof reservedStockData.available_qty === "number") {
+				availableQty = reservedStockData.available_qty;
+				reservedQty = reservedStockData.reserved_qty || 0;
+			} else if (typeof item.available_qty === "number") {
+				// Fallback to item.available_qty if available
+				availableQty = item.available_qty;
+			}
+
+			// Step 4: Zero stock validation (if enabled)
+			if (availableQty === 0 && posProfile?.posa_display_items_in_stock) {
+				const message = reservedQty > 0 
+					? `No stock available for ${item.item_name}. ${reservedQty} units are reserved.`
+					: `No stock available for ${item.item_name}`;
+					
 				if (eventBus) {
 					eventBus.emit("show_message", {
-						title: `No stock available for ${item.item_name}`,
+						title: message,
 						color: "error",
 					});
 				}
@@ -68,7 +87,7 @@ export function useCartValidation() {
 			const isStockItem = parseBooleanSetting(item?.is_stock_item);
 
 			if (isStockItem) {
-				// Step 4: Client-side quantity validation (before server call)
+				// Step 5: Client-side quantity validation (before server call)
 				// Allow negative stock items when Allow Negative Stock is enabled
 				// This overrides POS Profile's block setting when negative stock is explicitly allowed
 				const allowNegativeStock =
@@ -76,17 +95,21 @@ export function useCartValidation() {
 					(parseBooleanSetting(stockSettings?.allow_negative_stock) ||
 						parseBooleanSetting(item?.allow_negative_stock));
 				const exceedsAvailable =
-					typeof item.actual_qty === "number" && requestedQty > item.actual_qty;
+					typeof availableQty === "number" && requestedQty > availableQty;
 				const blockSale = !allowNegativeStock && exceedsAvailable;
 
 				if (blockSale) {
+					const stockMessage = reservedQty > 0
+						? `Insufficient stock for ${item.item_name}. Available: ${availableQty}, Reserved: ${reservedQty}, Requested: ${requestedQty}`
+						: formatStockShortageError(
+							item.item_name || item.item_code,
+							availableQty,
+							requestedQty,
+						);
+						
 					if (eventBus) {
 						eventBus.emit("show_message", {
-							title: formatStockShortageError(
-								item.item_name || item.item_code,
-								item.actual_qty,
-								requestedQty,
-							),
+							title: stockMessage,
 							color: "error",
 						});
 					}
@@ -126,6 +149,7 @@ export function useCartValidation() {
 				eventBus,
 				blockSaleBeyondAvailableQty,
 				showNegativeStockWarning,
+				reservedStockData,
 			);
 		} finally {
 			isValidating.value = false;
@@ -145,7 +169,7 @@ export function useCartValidation() {
 			const testItem = {
 				item_code: item.item_code,
 				item_name: item.item_name,
-				warehouse: posProfile?.warehouse || item.warehouse,
+				warehouse: posProfile?.warehouse ,
 				qty: Math.abs(requestedQty),
 				stock_qty: Math.abs(requestedQty),
 				actual_qty: item.actual_qty,
@@ -189,6 +213,7 @@ export function useCartValidation() {
 	 * @param {Object} stockSettings - Stock settings
 	 * @param {Object} eventBus - Event bus for notifications
 	 * @param {boolean} blockSaleBeyondAvailableQty - Block sales beyond available quantity
+	 * @param {Object} reservedStockData - Reserved stock data for the item (optional)
 	 * @returns {boolean} - Returns true if item can be added, false otherwise
 	 */
 	function performFallbackValidation(
@@ -198,8 +223,22 @@ export function useCartValidation() {
 		eventBus,
 		blockSaleBeyondAvailableQty = false,
 		showNegativeStockWarning = true,
+		reservedStockData = null,
 	) {
 		console.warn("Using fallback validation due to server validation failure");
+
+		// Get available quantity after reservations
+		let availableQty = item.actual_qty;
+		let reservedQty = 0;
+		
+		// Use reserved stock data if provided to get accurate available quantity
+		if (reservedStockData && typeof reservedStockData.available_qty === "number") {
+			availableQty = reservedStockData.available_qty;
+			reservedQty = reservedStockData.reserved_qty || 0;
+		} else if (typeof item.available_qty === "number") {
+			// Fallback to item.available_qty if available
+			availableQty = item.available_qty;
+		}
 
 		const isStockItem = parseBooleanSetting(item?.is_stock_item);
 
@@ -211,12 +250,12 @@ export function useCartValidation() {
 					parseBooleanSetting(item?.allow_negative_stock));
 
 			// Simple negative stock check - only block if negative stock is not allowed
-			if (item.actual_qty < 0 && !allowNegativeStock) {
+			if (availableQty < 0 && !allowNegativeStock) {
 				if (eventBus) {
 					eventBus.emit("show_message", {
 						title: formatStockShortageError(
 							item.item_name || item.item_code,
-							item.actual_qty,
+							availableQty,
 							requestedQty,
 						),
 						color: "error",
@@ -226,16 +265,20 @@ export function useCartValidation() {
 			}
 
 			// Check if requested quantity exceeds available stock
-			const exceedsAvailable = typeof item.actual_qty === "number" && requestedQty > item.actual_qty;
+			const exceedsAvailable = typeof availableQty === "number" && requestedQty > availableQty;
 			const blockSale = !allowNegativeStock && exceedsAvailable;
 			if (blockSale) {
+				const stockMessage = reservedQty > 0
+					? `Insufficient stock for ${item.item_name}. Available: ${availableQty}, Reserved: ${reservedQty}, Requested: ${requestedQty}`
+					: formatStockShortageError(
+						item.item_name || item.item_code,
+						availableQty,
+						requestedQty,
+					);
+					
 				if (eventBus) {
 					eventBus.emit("show_message", {
-						title: formatStockShortageError(
-							item.item_name || item.item_code,
-							item.actual_qty,
-							requestedQty,
-						),
+						title: stockMessage,
 						color: "error",
 					});
 				}
