@@ -607,19 +607,19 @@
 						<v-card class="pa-3 mb-3" color="blue-grey-lighten-5">
 							<v-card-title class="text-h6 pa-0 mb-2">
 								<v-icon color="primary" class="mr-2">mdi-cash-refund</v-icon>
-								{{ frappe._('Return Details') }}
+								{{ frappe._('Détails du retour') }}
 							</v-card-title>
 							
 							<!-- Show original invoice details -->
 							<v-row class="mb-3">
 								<v-col cols="6">
-									<div class="text-caption text-medium-emphasis">{{ frappe._('Original Invoice Total') }}</div>
+									<div class="text-caption text-medium-emphasis">{{ frappe._('Total de la facture originale') }}</div>
 									<div class="text-h6 font-weight-bold">
 										{{ formatCurrency(getOriginalInvoiceTotal()) }}
 									</div>
 								</v-col>
 								<v-col cols="6">
-									<div class="text-caption text-medium-emphasis">{{ frappe._('Original Amount Paid') }}</div>
+									<div class="text-caption text-medium-emphasis">{{ frappe._('Montant initialement payé') }}</div>
 									<div class="text-h6 font-weight-bold green--text">
 										{{ formatCurrency(getOriginalPaidAmount()) }}
 									</div>
@@ -636,10 +636,10 @@
 										min="0"
 										:max="getOriginalPaidAmount()"
 										v-model.number="return_amount"
-										:label="frappe._('Amount to Return to Customer')"
+										:label="frappe._('Montant à rembourser au client')"
 										:prefix="currencySymbol(invoice_doc.currency)"
 										:rules="[maxReturnAmountRule]"
-										hint="Maximum amount that can be returned is the original paid amount"
+										hint="Le montant maximal remboursable est le montant initialement payé."
 										persistent-hint
 									></v-text-field>
 								</v-col>
@@ -1570,7 +1570,7 @@ export default {
 			if (!this.invoice_doc || !this.invoice_doc.is_return) {
 				return 0;
 			}
-			// For return invoices, get the original invoice total from the return_against field
+			// For return invoices, get the Total de la facture originale from the return_against field
 			if (this.invoice_doc.return_against && this.original_invoice_data) {
 				return this.original_invoice_data.grand_total || this.original_invoice_data.rounded_total || 0;
 			}
