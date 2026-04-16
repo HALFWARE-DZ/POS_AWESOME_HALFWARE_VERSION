@@ -334,23 +334,6 @@ fixtures = [
                     "Sales Invoice-posa_return_valid_upto",
                     "POS Profile-posa_allow_multi_currency",
                     "POS Profile-posa_decimal_precision",
-                    "POS Profile-posa_scale_barcode_start",
-                    "POS Profile-posa_show_customer_balance",
-                    "POS Profile-posa_default_country",
-                    "POS Profile-posa_silent_print",
-                    "POS Profile-posa_open_print_in_new_tab",
-                    "POS Profile-posa_print_format_rules",
-                    "POS Profile-posa_allow_delete_offline_invoice",
-                    "POS Profile-posa_allow_price_list_rate_change",
-                    "POS Profile-posa_force_reload_items",
-                    "POS Profile-posa_smart_reload_mode",
-                    "POS Profile-posa_force_price_from_customer_price_list",
-                    "POS Profile-posa_block_sale_beyond_available_qty",
-                    "POS Profile-posa_allow_line_item_name_override",
-                    "POS Profile-posa_show_custom_name_marker_on_print",
-                    "POS Profile-posa_show_custom_name_marker_on_print",
-                    "POS Profile-create_pos_invoice_instead_of_sales_invoice",
-                    "POS Profile-posa_sales_persons"
                 ),
             ]
         ],
@@ -382,17 +365,27 @@ def override_sales_invoice_validation():
     original_validate_return_against = validate_return_against
     
     def custom_validate_return_against(doc):
-        # For returns against reservations, force update_stock to 0
+        # For returns, check original invoice type to determine correct update_stock behavior
         if doc.is_return and doc.return_against:
-            # Check if original invoice was a reservation (update_stock=0)
+            # Check if original invoice was a reservation (custom_is_reserve=1) or had no stock update (update_stock=0)
             original = frappe.get_cached_doc('Sales Invoice', doc.return_against)
-            if original.get('custom_is_reserve') or original.update_stock == 0:
-                # Force update_stock to 0 on the return to match
+            is_reserve = original.get('custom_is_reserve') or original.update_stock == 0
+            
+            frappe.logger().info(f"Return {doc.name} against {doc.return_against}: "
+                               f"original custom_is_reserve={original.get('custom_is_reserve')}, "
+                               f"original update_stock={original.update_stock}, "
+                               f"is_reserve={is_reserve}, "
+                               f"current update_stock={doc.update_stock}")
+            
+            if is_reserve:
+                # Force update_stock to 0 on the return to match original reservation behavior
                 doc.update_stock = 0
+                frappe.logger().info(f"Set update_stock=0 for reserve return {doc.name}")
                 return
         
-        # For any return with update_stock=0, skip validation
+        # For any return with update_stock=0, skip validation (no stock delivery needed)
         if doc.is_return and doc.update_stock == 0:
+            frappe.logger().info(f"Skipping stock validation for return {doc.name} with update_stock=0")
             return
             
         return original_validate_return_against(doc)

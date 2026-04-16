@@ -699,8 +699,14 @@ export default {
 					invoice_doc.grand_total = originalAmount;
 				}
 
-				// These fields ensure proper return handling
-				invoice_doc.update_stock = 1;
+				// Set update_stock based on original invoice type
+				// For reserve invoices (custom_is_reserve=1 or update_stock=0), keep update_stock=0
+				// For normal sales invoices, set update_stock=1 to return items to stock
+				if (return_doc.custom_is_reserve == 1 || return_doc.update_stock == 0) {
+					invoice_doc.update_stock = 0;
+				} else {
+					invoice_doc.update_stock = 1;
+				}
 				invoice_doc.pos_profile = this.pos_profile.name;
 				invoice_doc.company = this.company;
 

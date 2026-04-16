@@ -1947,9 +1947,31 @@ export default {
 			if (this.invoice_doc.custom_is_reserve) {
 				this.invoice_doc.update_stock = 0; // Don't update stock for reservations
 			} else if (this.invoice_doc.is_return && this.invoice_doc.return_against) {
-				// For returns, ALWAYS set update_stock to 0 to match reservation behavior
-				// This prevents the "items are not delivered" validation error
-				this.invoice_doc.update_stock = 0;
+				// For returns, fetch original invoice to determine if it was a reserve
+				try {
+					const original_invoice = await frappe.call({
+						method: 'frappe.client.get',
+						args: {
+							doctype: 'Sales Invoice',
+							name: this.invoice_doc.return_against
+						}
+					});
+					
+					if (original_invoice.message) {
+						const original = original_invoice.message;
+						// If original was reserve (custom_is_reserve=1) or had no stock update (update_stock=0), 
+						// then return should also not update stock
+						if (original.custom_is_reserve == 1 || original.update_stock == 0) {
+							this.invoice_doc.update_stock = 0;
+						} else {
+							// Original was normal sales, so return should update stock
+							this.invoice_doc.update_stock = 1;
+						}
+					}
+				} catch (error) {
+					console.error('Error fetching original invoice:', error);
+					// Fallback: preserve existing value if we can't fetch original
+				}
 			} else {
 				this.invoice_doc.update_stock = 1; // Update stock for normal sales
 			}
