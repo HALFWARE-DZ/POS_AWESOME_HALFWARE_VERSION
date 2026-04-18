@@ -1113,20 +1113,8 @@ export default {
 		},
 		async refreshReservedStockData() {
 			if (!this.displayedItems || !this.displayedItems.length || !this.pos_profile?.warehouse) {
-				console.log('DEBUG: refreshReservedStockData - missing data', {
-					hasDisplayedItems: !!this.displayedItems,
-					displayedItemsLength: this.displayedItems?.length,
-					hasWarehouse: !!this.pos_profile?.warehouse,
-					warehouse: this.pos_profile?.warehouse
-				});
 				return;
 			}
-
-			console.log('DEBUG: refreshReservedStockData - starting refresh', {
-				itemsCount: this.displayedItems.length,
-				warehouse: this.pos_profile.warehouse,
-				firstFewItems: this.displayedItems.slice(0, 3).map(item => item.item_code)
-			});
 
 			// Set loading state
 			this.reservedStockLoading = true;
@@ -1144,8 +1132,7 @@ export default {
 					warehouse: this.pos_profile.warehouse
 				}));
 
-				console.log('DEBUG: refreshReservedStockData - calling API with itemsData', itemsData.slice(0, 3)); // Show first 3 items
-
+	
 				const result = await frappe.call({
 					method: 'posawesome.posawesome.api.reserved_stock.get_bulk_reserved_stock_info',
 					args: {
@@ -1153,25 +1140,19 @@ export default {
 					}
 				});
 
-				console.log('DEBUG: refreshReservedStockData - API result', result);
-
+	
 				if (result.message) {
+					// Force cache invalidation by replacing the entire object
+					this.reservedStockData = {};
 					this.reservedStockData = result.message;
-					console.log('DEBUG: refreshReservedStockData - updated reservedStockData', this.reservedStockData);
 					
-					// Verify the data matches displayed items
-					const firstItem = this.displayedItems[0];
-					if (firstItem) {
-						const cacheKey = `${firstItem.item_code},${this.pos_profile.warehouse}`;
-						const reservedData = this.reservedStockData[cacheKey];
-						console.log('DEBUG: First displayed item:', firstItem.item_code);
-						console.log('DEBUG: Reserved data key:', cacheKey);
-						console.log('DEBUG: Reserved data exists:', !!reservedData);
-						console.log('DEBUG: Reserved data:', reservedData);
-					}
+					// Force UI update to reflect new stock data
+					this.$nextTick(() => {
+						this.$forceUpdate();
+					});
 				}
 			} catch (error) {
-				console.error('DEBUG: refreshReservedStockData - error:', error);
+				console.error('Failed to refresh reserved stock data:', error);
 				
 				// Emit error progress
 				this.eventBus.emit('data-load-progress', {
@@ -1197,10 +1178,10 @@ export default {
 				clearInterval(this.reservedStockTimer);
 			}
 
-			// Auto-refresh every 5 seconds
+			// Auto-refresh every 2 seconds for more responsive stock updates
 			this.reservedStockTimer = setInterval(() => {
 				this.refreshReservedStockData();
-			}, 5000);
+			}, 2000);
 		},
 		stopReservedStockAutoRefresh() {
 			if (this.reservedStockTimer) {
@@ -1210,11 +1191,6 @@ export default {
 		},
 		getReservedStockForItem(item) {
 			if (!item || !item.item_code || !this.pos_profile?.warehouse) {
-				console.log('DEBUG: getReservedStockForItem - missing data', {
-					hasItem: !!item,
-					hasItemCode: !!item?.item_code,
-					hasWarehouse: !!this.pos_profile?.warehouse
-				});
 				return {
 					available_qty: 0,
 					reserved_qty: 0,
@@ -1229,16 +1205,6 @@ export default {
 				reserved_invoices: []
 			};
 			
-			// Debug logging for stock issues
-			console.log('DEBUG: getReservedStockForItem', {
-				item_code: item.item_code,
-				warehouse: this.pos_profile.warehouse,
-				cacheKey,
-				available_qty: stockData.available_qty,
-				item_actual_qty: item.actual_qty,
-				hasReservedData: !!this.reservedStockData[cacheKey]
-			});
-			
 			return stockData;
 		},
 		hasReservedStock(item) {
@@ -1247,15 +1213,12 @@ export default {
 		},
 		getReservedInvoicesText(item) {
 			const reservedData = this.getReservedStockForItem(item);
-			console.log('DEBUG: getReservedInvoicesText for item', item.item_code, reservedData);
 			
 			if (!reservedData.reserved_invoices || reservedData.reserved_invoices.length === 0) {
-				console.log('DEBUG: No reserved invoices found for item', item.item_code);
 				return '';
 			}
 			// Return only the latest (first) invoice since they're sorted by date
 			const latestInvoice = reservedData.reserved_invoices[0];
-			console.log('DEBUG: Latest invoice for item', item.item_code, latestInvoice);
 			
 			// Format the display text
 			if (typeof latestInvoice === 'object' && latestInvoice.invoice) {
@@ -2397,7 +2360,15 @@ export default {
 				reservedStockData, // Pass reserved stock data for accurate validation
 			);
 
+			console.log("DEBUG: add_item - validation result", {
+				isValid,
+				item_code: item.item_code,
+				requestedQty,
+				reservedStockData
+			});
+
 			if (!isValid) {
+				console.log("DEBUG: add_item - validation failed, returning undefined");
 				// Validation failed, error message already shown by validator
 				return;
 			}
@@ -4243,7 +4214,11 @@ export default {
 			return index.get(normalized) || index.get(normalized.toLowerCase()) || null;
 		},
 		async addScannedItemToInvoice(item, scannedCode, qtyFromBarcode = null, priceFromBarcode = null) {
-			console.log("Adding scanned item to invoice:", item, scannedCode);
+			console.log("DEBUG: addScannedItemToInvoice - START", {
+				item_code: item.item_code,
+				item_name: item.item_name,
+				scannedCode
+			});
 
 			// Clone the item to avoid mutating list data
 			const newItem = { ...item };
@@ -4395,11 +4370,13 @@ export default {
 			this.awaitingScanResult = true;
 
 			try {
+				console.log("DEBUG: addScannedItemToInvoice - calling add_item");
 				// Use existing add_item method with enhanced feedback
-				await this.add_item(newItem, {
+				const result = await this.add_item(newItem, {
 					suppressNegativeWarning: true,
 					skipNotification: true,
 				});
+				console.log("DEBUG: addScannedItemToInvoice - add_item returned:", result);
 				this.playScanTone("success");
 				this.scannerLocked = false;
 				this.search_from_scanner = false;

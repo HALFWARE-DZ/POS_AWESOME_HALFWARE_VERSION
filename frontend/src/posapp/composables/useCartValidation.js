@@ -69,20 +69,19 @@ export function useCartValidation() {
 				availableQty = item.available_qty;
 			}
 
-			// DEBUG: Log validation details
-			console.log('DEBUG: Cart Validation', {
+			
+			// Step 4: Zero stock validation (if enabled) - TEMPORARILY DISABLED
+			// TODO: Re-enable after cache sync issues are resolved
+			/*
+			console.log('DEBUG: Zero stock validation check', {
 				item_code: item.item_code,
-				item_name: item.item_name,
-				requestedQty,
 				availableQty,
-				reservedQty,
-				blockSaleBeyondAvailableQty,
-				allowNegativeStock: parseBooleanSetting(stockSettings?.allow_negative_stock) || parseBooleanSetting(item?.allow_negative_stock),
-				isStockItem: parseBooleanSetting(item?.is_stock_item)
+				posa_display_items_in_stock: posProfile?.posa_display_items_in_stock,
+				reservedQty
 			});
-
-			// Step 4: Zero stock validation (if enabled)
+			
 			if (availableQty === 0 && posProfile?.posa_display_items_in_stock) {
+				console.log('DEBUG: Zero stock validation - blocking item');
 				const message = reservedQty > 0 
 					? `No stock available for ${item.item_name}. ${reservedQty} units are reserved.`
 					: `No stock available for ${item.item_name}`;
@@ -95,6 +94,7 @@ export function useCartValidation() {
 				}
 				return false;
 			}
+			*/
 
 			const isStockItem = parseBooleanSetting(item?.is_stock_item);
 
@@ -110,14 +110,7 @@ export function useCartValidation() {
 					typeof availableQty === "number" && requestedQty > availableQty;
 				const blockSale = !allowNegativeStock && exceedsAvailable;
 
-				console.log('DEBUG: Stock Check', {
-					exceedsAvailable,
-					allowNegativeStock,
-					blockSale,
-					availableQty,
-					requestedQty
-				});
-
+				
 				if (blockSale) {
 					const stockMessage = reservedQty > 0
 						? `Insufficient stock for ${item.item_name}. Available: ${availableQty}, Reserved: ${reservedQty}, Requested: ${requestedQty}`
