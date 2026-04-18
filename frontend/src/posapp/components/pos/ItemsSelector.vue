@@ -1210,6 +1210,11 @@ export default {
 		},
 		getReservedStockForItem(item) {
 			if (!item || !item.item_code || !this.pos_profile?.warehouse) {
+				console.log('DEBUG: getReservedStockForItem - missing data', {
+					hasItem: !!item,
+					hasItemCode: !!item?.item_code,
+					hasWarehouse: !!this.pos_profile?.warehouse
+				});
 				return {
 					available_qty: 0,
 					reserved_qty: 0,
@@ -1218,11 +1223,23 @@ export default {
 			}
 
 			const cacheKey = `${item.item_code},${this.pos_profile.warehouse}`;
-			return this.reservedStockData[cacheKey] || {
+			const stockData = this.reservedStockData[cacheKey] || {
 				available_qty: 0,
 				reserved_qty: 0,
 				reserved_invoices: []
 			};
+			
+			// Debug logging for stock issues
+			console.log('DEBUG: getReservedStockForItem', {
+				item_code: item.item_code,
+				warehouse: this.pos_profile.warehouse,
+				cacheKey,
+				available_qty: stockData.available_qty,
+				item_actual_qty: item.actual_qty,
+				hasReservedData: !!this.reservedStockData[cacheKey]
+			});
+			
+			return stockData;
 		},
 		hasReservedStock(item) {
 			const reservedData = this.getReservedStockForItem(item);
@@ -4056,11 +4073,26 @@ export default {
 				return;
 			}
 
+			// DEBUG: Log why item wasn't found locally
+			console.log('DEBUG: Barcode not found locally', {
+				searchCode,
+				processedCode: searchCode,
+				totalItems: this.items?.length || 0,
+				barcodeIndexSize: this.barcodeIndex?.size || 0,
+				sampleItems: this.items?.slice(0, 3).map(item => ({
+					item_code: item.item_code,
+					barcode: item.barcode,
+					item_barcode_count: item.item_barcode?.length || 0,
+					barcodes_count: item.barcodes?.length || 0
+				}))
+			});
+
 			// If not found locally, attempt to fetch from server using processed code
 			try {
 				let newItem = null;
 				if (qtyFromBarcode !== null) {
 					// Scale barcodes use a direct, faster lookup
+					console.log('DEBUG: Trying scale barcode lookup for:', searchCode);
 					const res = await frappe.call({
 						method: "posawesome.posawesome.api.items.get_item_detail",
 						args: {
@@ -4070,11 +4102,13 @@ export default {
 							company: this.pos_profile.company,
 						},
 					});
+					console.log('DEBUG: Scale barcode lookup result:', res);
 					if (res && res.message) {
 						newItem = res.message;
 					}
 				} else {
 					// Regular barcodes and searches use the generic search
+					console.log('DEBUG: Trying regular item search for:', searchCode);
 					const res = await frappe.call({
 						method: "posawesome.posawesome.api.items.get_items",
 						args: {
@@ -4084,6 +4118,7 @@ export default {
 						},
 					});
 
+					console.log('DEBUG: Regular item search result:', res);
 					if (res && res.message && res.message.length > 0) {
 						newItem = res.message[0];
 					}
@@ -5264,6 +5299,14 @@ export default {
 			if (this.itemsLoaded && this.displayedItems.length > 0) {
 				this.refreshReservedStockData();
 			}
+		}
+
+		// Auto-trigger forceReloadItems on first entry to ensure fresh data from server.
+		// Only runs once per session using a sessionStorage flag.
+		if (!isOffline()) {
+			this.$nextTick(() => {
+				this.forceReloadItems();
+			});
 		}
 	},
 
