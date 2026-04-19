@@ -289,6 +289,7 @@ async function ensureReadyAndPrint(targetWindow, options = {}) {
 		shouldPrint: initialPrintState.resolvedShouldPrint,
 	});
 
+	let printAlreadyCalled = false;
 	try {
 		await waitForDocumentSelectors(
 			targetWindow,
@@ -309,6 +310,7 @@ async function ensureReadyAndPrint(targetWindow, options = {}) {
 		if (resolvedShouldPrint) {
 			targetWindow.focus();
 			targetWindow.print();
+			printAlreadyCalled = true;
 		}
 	} catch (err) {
 		console.warn("Print readiness check failed", err);
@@ -335,7 +337,8 @@ async function ensureReadyAndPrint(targetWindow, options = {}) {
 				shouldPrint: resolvedShouldPrint,
 			});
 		}
-		if (!usedFallback && resolvedShouldPrint) {
+		// Only call print if fallback wasn't used AND print wasn't already called
+		if (!usedFallback && resolvedShouldPrint && !printAlreadyCalled) {
 			try {
 				targetWindow.focus();
 				targetWindow.print();
@@ -371,46 +374,33 @@ export function watchPrintWindow(printWindow, options = {}) {
 export function silentPrint(url, options = {}) {
 	if (!url) return;
 	try {
-		// Create hidden iframe to load the print content
-		const iframe = document.createElement("iframe");
-		iframe.style.position = "absolute";
-		iframe.style.left = "-9999px";
-		iframe.style.top = "-9999px";
-		iframe.style.width = "800px";
-		iframe.style.height = "600px";
-		iframe.style.border = "none";
-		iframe.style.visibility = "hidden";
-		
-		iframe.onload = () => {
-			setTimeout(() => {
-				try {
-					// Print from the iframe - this shows print dialog in current window
-					iframe.contentWindow.print();
-				} catch (e) {
-					console.error("Silent print failed", e);
-				}
-				// Clean up iframe
-				setTimeout(() => {
-					if (iframe.parentNode) {
-						iframe.parentNode.removeChild(iframe);
-					}
-				}, 2000);
-			}, 1500);
-		};
-		
-		// Load the URL in iframe
-		iframe.src = url;
-		document.body.appendChild(iframe);
-		
-		// Fallback cleanup
-		setTimeout(() => {
-			if (iframe.parentNode) {
-				iframe.parentNode.removeChild(iframe);
+		// In --kiosk-printing mode, window.print() skips dialog entirely
+		// We open minimized/tiny, print, then close
+		const win = window.open(url, "pos_silent_print", "width=500,height=500,menubar=no,toolbar=no,location=no,status=no,scrollbars=no");
+		if (!win) {
+			console.error("[POSAwesome][Print] Popup blocked");
+			return;
+		}
+
+		// Window will open centered and visible
+
+		let printed = false;
+		const doPrint = () => {
+			if (printed) return;
+			printed = true;
+			try {
+				win.print(); // instant with --kiosk-printing, no dialog
+			} catch (e) {
+				console.error("[POSAwesome][Print] print() failed", e);
 			}
-		}, 10000);
-		
+			setTimeout(() => { try { win.close(); } catch(e) {} }, 1000);
+		};
+
+		win.addEventListener("load", () => setTimeout(doPrint, 600), { once: true });
+		setTimeout(() => { if (!win.closed) doPrint(); }, 4000);
+
 	} catch (err) {
-		console.error("Silent print failed", err);
+		console.error("[POSAwesome][Print] silentPrint failed", err);
 	}
 }
 

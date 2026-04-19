@@ -865,6 +865,7 @@
 <script>
 import format from "../../format";
 import PinDialog from "./PinDialog.vue";
+import { watchPrintWindow } from "../../plugins/print.js";
 
 export default {
 	mixins: [format],
@@ -986,19 +987,134 @@ export default {
 			// Store the dialog data for printing after submission
 			this.pendingPrintData = this.dialog_data;
 			
+			console.log("Submitting closing shift...", this.dialog_data);
+			
 			// Listen for successful submission
 			this.eventBus.on("closing_shift_submitted", (data) => {
-				if (data && data.name) {
-					// Print the closing shift after successful submission
-					const printUrl = `/printview?doctype=POS%20Closing%20Shift&name=${data.name}&format=Closing Shift&trigger_print=1`;
-					window.open(printUrl, '_blank');
-				}
+				console.log("Closing shift submitted event received:", data);
 				// Clean up the listener
 				this.eventBus.off("closing_shift_submitted");
+				
+				// Fetch the latest closing shift name and print
+				this.fetchLatestClosingShiftAndPrint();
 			});
+			
+			// Also add a timeout fallback in case the event doesn't fire
+			setTimeout(() => {
+				console.log("Fallback: trying to print after timeout");
+				this.fetchLatestClosingShiftAndPrint();
+			}, 3000); // 3 second fallback
 			
 			this.eventBus.emit("submit_closing_pos", this.dialog_data);
 			this.closingDialog = false;
+		},
+
+		printClosingShift(closingShiftName) {
+			if (!closingShiftName) {
+				console.error("No closing shift name provided for printing");
+				return;
+			}
+
+			try {
+				// Create the print URL for POS Closing Shift with Closing Shift format
+				const printUrl = `/printview?doctype=POS%20Closing%20Shift&name=${encodeURIComponent(closingShiftName)}&format=Closing Shift&trigger_print=1`;
+				
+				console.log("Opening print URL:", printUrl);
+				
+				// Open the print window
+				const printWindow = window.open(printUrl, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes');
+				
+				if (!printWindow) {
+					console.error("Print window was blocked by popup blocker");
+					// Fallback: try without window features
+					window.open(printUrl, '_blank');
+					return;
+				}
+
+				// Set up print monitoring using the print plugin
+				watchPrintWindow(printWindow, {
+					shouldPrint: true,
+					allowOfflineFallback: false,
+					timeout: 15000,
+					debugPrint: false
+				});
+
+			} catch (error) {
+				console.error("Failed to open print window:", error);
+				// Show user-friendly error message
+				alert(this.__("Failed to open print window. Please check your browser popup settings and try again."));
+			}
+		},
+
+		fetchLatestClosingShiftAndPrint() {
+			console.log("Fetching latest closing shift name...");
+			
+			// Make a server call to get the latest closing shift
+			frappe.call({
+				method: "frappe.client.get_list",
+				args: {
+					doctype: "POS Closing Shift",
+					fields: ["name"],
+					order_by: "creation desc",
+					limit_page_length: 1
+				},
+				callback: (response) => {
+					console.log("Latest closing shift response:", response);
+					
+					if (response && response.message && response.message.length > 0) {
+						const latestClosingShift = response.message[0];
+						const closingShiftName = latestClosingShift.name;
+						
+						console.log("Found latest closing shift:", closingShiftName);
+						
+						// Print the latest closing shift
+						this.printClosingShift(closingShiftName);
+					} else {
+						console.error("No closing shifts found");
+						// Fallback to direct print
+						this.printClosingShiftDirectly();
+					}
+				},
+				error: (error) => {
+					console.error("Error fetching latest closing shift:", error);
+					// Fallback to direct print
+					this.printClosingShiftDirectly();
+				}
+			});
+		},
+
+		printClosingShiftDirectly() {
+			console.log("Attempting direct print approach");
+			try {
+				// Try to open a generic print view without a specific name
+				const printUrl = `/printview?doctype=POS%20Closing%20Shift&format=Closing Shift&trigger_print=1`;
+				console.log("Opening direct print URL:", printUrl);
+				
+				const printWindow = window.open(printUrl, '_blank', 'width=800,height=600,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes');
+				
+				if (!printWindow) {
+					console.error("Direct print window was blocked");
+					// Try without window features
+					window.open(printUrl, '_blank');
+				} else {
+					// Set up print monitoring
+					watchPrintWindow(printWindow, {
+						shouldPrint: true,
+						allowOfflineFallback: false,
+						timeout: 15000,
+						debugPrint: false
+					});
+				}
+			} catch (error) {
+				console.error("Direct print failed:", error);
+				// Last resort: try to trigger browser print directly
+				try {
+					window.print();
+				} catch (printError) {
+					console.error("Even direct print failed:", printError);
+					alert(this.__("Unable to open print dialog. Please check your browser settings and try again."));
+				}
+			}
 		},
 		fetchOverview(openingShift) {
 			this.overviewLoading = true;

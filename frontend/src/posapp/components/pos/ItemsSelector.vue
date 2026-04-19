@@ -2346,7 +2346,32 @@ export default {
 			const requestedQty = this.qty != null ? Math.abs(this.qty) : 1;
 			
 			// Get reserved stock data for accurate validation
-			const reservedStockData = this.getReservedStockForItem(item);
+			let reservedStockData = this.getReservedStockForItem(item);
+			
+			// For scanned items, if reserved stock data shows 0 available, try to fetch fresh data
+			// This prevents false "out of stock" errors when cache is stale
+			if (reservedStockData.available_qty === 0 && item.actual_qty > 0) {
+				console.log("DEBUG: Reserved stock shows 0, fetching fresh data for scanned item:", item.item_code);
+				try {
+					const freshStockData = await this.getReservedStockInfo(item.item_code, this.pos_profile.warehouse);
+					if (freshStockData && freshStockData.available_qty > 0) {
+						reservedStockData = freshStockData;
+						console.log("DEBUG: Fresh stock data fetched:", freshStockData);
+					}
+				} catch (error) {
+					console.warn("Failed to fetch fresh stock data for scanned item:", error);
+				}
+			}
+			
+			// Fallback: If still no valid stock data, use item's actual_qty as available quantity
+			if (reservedStockData.available_qty === 0 && item.actual_qty > 0) {
+				reservedStockData = {
+					available_qty: item.actual_qty,
+					reserved_qty: 0,
+					reserved_invoices: []
+				};
+				console.log("DEBUG: Using item.actual_qty as fallback:", item.actual_qty);
+			}
 			
 			const isValid = await this.cartValidation.validateCartItem(
 				item,

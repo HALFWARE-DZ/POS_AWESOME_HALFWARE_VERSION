@@ -354,7 +354,7 @@ export default {
 				return;
 			}
 
-			const print_format = this.posProfile.print_format_for_online || this.posProfile.print_format;
+			const print_format = "Bon de caisse"; // Use same print format as regular invoice printing
 			const letter_head = this.posProfile.letter_head || 0;
 			const doctype = this.posProfile.create_pos_invoice_instead_of_sales_invoice
 				? "POS Invoice"
