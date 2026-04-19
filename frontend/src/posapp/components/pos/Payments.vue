@@ -1662,6 +1662,30 @@ export default {
 				}
 			});
 		},
+		// Open cash drawer when payment has cash component
+		open_cash_drawer() {
+			// Only open if payment has cash component
+			const hasCash = this.invoice_doc?.payments?.some(
+				p => this.isCashLikePayment(p) && Math.abs(p.amount) > 0
+			);
+			if (!hasCash) return;
+
+			// ESC/POS cash drawer kick command (GPIO pulse pin 2)
+			// Works with most thermal printers connected via network or USB
+			const escpos = '\x1B\x70\x00\x19\xFA'; // ESC p pin duration1 duration2
+			
+			// Option A: if you have a network printer (most common for your setups)
+			const printerIp = this.pos_profile.posa_cash_drawer_printer_ip; // add this field to POS Profile
+			if (printerIp) {
+				fetch(`http://${printerIp}/cgi-bin/epos/service.cgi`, {
+					method: 'POST',
+					body: escpos,
+				}).catch(() => {}); // silent fail
+			}
+			
+			// Option B: trigger via print job (printer opens drawer on any print if DK port is wired)
+			// Nothing needed — drawer opens automatically when receipt prints if cable is connected
+		},
 		// Ensure all payments are negative for return invoices
 		ensureReturnPaymentsAreNegative() {
 			if (!this.invoice_doc || !this.invoice_doc.is_return || !this.is_cashback) {
@@ -2125,6 +2149,7 @@ export default {
 					color: "success",
 				});
 				frappe.utils.play_sound("submit");
+				this.open_cash_drawer();
 				const submittedItems = Array.isArray(this.invoice_doc.items) ? this.invoice_doc.items : [];
 				// Only update stock for non-reservation invoices
 				// Reservations should use stock reservation, not stock decrease
@@ -2347,7 +2372,7 @@ export default {
 				encodeURIComponent(doctype) +
 				"&name=" +
 				this.invoice_doc.name +
-				"&trigger_print=1" +
+				"&trigger_print=0" +
 				"&format=" +
 				print_format +
 				"&no_letterhead=" +

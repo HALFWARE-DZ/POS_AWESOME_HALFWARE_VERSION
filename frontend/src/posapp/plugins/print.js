@@ -371,26 +371,46 @@ export function watchPrintWindow(printWindow, options = {}) {
 export function silentPrint(url, options = {}) {
 	if (!url) return;
 	try {
+		// Create hidden iframe to load the print content
 		const iframe = document.createElement("iframe");
-		iframe.style.position = "fixed";
-		iframe.style.right = "0";
-		iframe.style.bottom = "0";
-		iframe.style.width = "0";
-		iframe.style.height = "0";
-		iframe.style.border = "0";
+		iframe.style.position = "absolute";
+		iframe.style.left = "-9999px";
+		iframe.style.top = "-9999px";
+		iframe.style.width = "800px";
+		iframe.style.height = "600px";
+		iframe.style.border = "none";
+		iframe.style.visibility = "hidden";
+		
 		iframe.onload = () => {
-			const contentWindow = iframe.contentWindow;
-			const cleanup = () => setTimeout(() => iframe.remove(), 1000);
-			Promise.resolve(ensureReadyAndPrint(contentWindow, options)).finally(cleanup);
+			setTimeout(() => {
+				try {
+					// Print from the iframe - this shows print dialog in current window
+					iframe.contentWindow.print();
+				} catch (e) {
+					console.error("Silent print failed", e);
+				}
+				// Clean up iframe
+				setTimeout(() => {
+					if (iframe.parentNode) {
+						iframe.parentNode.removeChild(iframe);
+					}
+				}, 2000);
+			}, 1500);
 		};
+		
+		// Load the URL in iframe
 		iframe.src = url;
 		document.body.appendChild(iframe);
+		
+		// Fallback cleanup
+		setTimeout(() => {
+			if (iframe.parentNode) {
+				iframe.parentNode.removeChild(iframe);
+			}
+		}, 10000);
+		
 	} catch (err) {
-		console.error("Silent print failed, falling back to new window", err);
-		const win = window.open(url, "_blank");
-		if (win) {
-			watchPrintWindow(win, options);
-		}
+		console.error("Silent print failed", err);
 	}
 }
 
