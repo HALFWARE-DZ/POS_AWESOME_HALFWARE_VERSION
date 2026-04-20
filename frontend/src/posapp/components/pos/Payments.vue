@@ -1477,7 +1477,8 @@ export default {
 		"invoice_doc.grand_total"(newVal) {
 			// Update editable_grand_total when invoice total changes
 			if (newVal && !this.is_user_editing_total) {
-				this.editable_grand_total = newVal;
+				// Store the raw numeric value, not the formatted string
+				this.editable_grand_total = parseFloat(newVal) || 0;
 			}
 		},
 	},
@@ -1538,12 +1539,14 @@ export default {
 				return;
 			}
 
-			const newTotal = parseFloat(this.editable_grand_total) || 0;
+			// Clean the input value by removing commas and converting Arabic numerals
+			const cleanValue = formatUtils.fromArabicNumerals(String(this.editable_grand_total)).replace(/,/g, "");
+			const newTotal = parseFloat(cleanValue) || 0;
 			const currentTotal = parseFloat(this.invoice_doc.grand_total) || 0;
 			
 			if (newTotal <= 0) {
 				// Reset to original if invalid
-				this.editable_grand_total = currentTotal;
+				this.editable_grand_total = parseFloat(currentTotal) || 0;
 				return;
 			}
 
@@ -3179,6 +3182,8 @@ export default {
 			// Listen to various event bus events for POS actions
 			this.eventBus.on("send_invoice_doc_payment", (invoice_doc) => {
 				this.invoice_doc = invoice_doc;
+				// Initialize editable_grand_total with the raw numeric value
+				this.editable_grand_total = parseFloat(invoice_doc.grand_total) || 0;
 				const default_payment = this.invoice_doc.payments.find((payment) => payment.default === 1);
 				const hasReturnPayments = this.invoice_doc.payments.some(
 					(payment) => Math.abs(this.flt(payment.amount || 0, this.currency_precision)) > 0,
