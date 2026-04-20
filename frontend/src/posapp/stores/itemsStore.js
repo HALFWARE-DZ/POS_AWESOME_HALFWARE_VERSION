@@ -314,6 +314,9 @@ export const useItemsStore = defineStore("items", () => {
 			abortControllers.value.set(cacheKey, abortController);
 
 			// Fetch from server
+			if (!posProfile.value) {
+				throw new Error("POS Profile not available for loading items");
+			}
 			const requestProfile = JSON.parse(JSON.stringify(posProfile.value));
 			if (forceServer) {
 				requestProfile.posa_use_server_cache = 0;
@@ -1029,6 +1032,11 @@ export const useItemsStore = defineStore("items", () => {
 
 			while (backgroundSyncState.value.token === token && shouldPersistItems()) {
 				// Clone posProfile and disable caching for this specific request
+				if (!posProfile.value) {
+					console.warn("POS Profile not available for background sync, skipping");
+					await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retry
+					continue;
+				}
 				const requestProfile = JSON.parse(JSON.stringify(posProfile.value));
 				if (reset) {
 					requestProfile.posa_use_server_cache = 0;
