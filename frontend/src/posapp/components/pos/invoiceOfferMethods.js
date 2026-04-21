@@ -71,6 +71,9 @@ export default {
 	normalizeBrand(brand) {
 		return (brand || "").trim().toLowerCase();
 	},
+	normalizeString(str) {
+		return (str || "").trim().toLowerCase();
+	},
 	_resolveOfferQty(item) {
 		if (!item) {
 			return 0;
@@ -233,6 +236,8 @@ export default {
 						brand: this.normalizeBrand(
 							item.brand || (this.brand_cache && this.brand_cache[item.item_code]) || "",
 						),
+						custom_la_famille: this.normalizeString(item.custom_la_famille || ""),
+						custom_la_collection: this.normalizeString(item.custom_la_collection || ""),
 					}
 				: fallback
 					? {
@@ -243,6 +248,8 @@ export default {
 									(this.brand_cache && this.brand_cache[fallback.item_code]) ||
 									"",
 							),
+							custom_la_famille: this.normalizeString(fallback.custom_la_famille || ""),
+							custom_la_collection: this.normalizeString(fallback.custom_la_collection || ""),
 						}
 					: null;
 
@@ -272,6 +279,28 @@ export default {
 						return true;
 					}
 					break;
+				case "Family":
+					if (!offer.apply_rule_on_family) {
+						return true;
+					}
+					if (!meta.custom_la_famille) {
+						return true;
+					}
+					if (meta.custom_la_famille === this.normalizeString(offer.apply_rule_on_family)) {
+						return true;
+					}
+					break;
+				case "Collection":
+					if (!offer.apply_rule_on_collection) {
+						return true;
+					}
+					if (!meta.custom_la_collection) {
+						return true;
+					}
+					if (meta.custom_la_collection === this.normalizeString(offer.apply_rule_on_collection)) {
+						return true;
+					}
+					break;
 				case "Transaction":
 					return true;
 				default:
@@ -288,12 +317,16 @@ export default {
 			itemCodeBuckets: new Map(),
 			itemGroupBuckets: new Map(),
 			brandBuckets: new Map(),
+			familyBuckets: new Map(),
+			collectionBuckets: new Map(),
 			transactionBucket: { items: [], qty: 0, amount: 0 },
 		};
 
 		const needItemCode = offers.some((offer) => offer.apply_on === "Item Code");
 		const needGroup = offers.some((offer) => offer.apply_on === "Item Group");
 		const needBrand = offers.some((offer) => offer.apply_on === "Brand");
+		const needFamily = offers.some((offer) => offer.apply_on === "Family");
+		const needCollection = offers.some((offer) => offer.apply_on === "Collection");
 		const needTransaction = offers.some((offer) => offer.apply_on === "Transaction");
 
 		const brandCandidates = [];
@@ -334,6 +367,28 @@ export default {
 
 			if (needBrand && !item.posa_is_offer && item.item_code) {
 				brandCandidates.push(item);
+			}
+
+			if (needFamily && !item.posa_is_offer && item.custom_la_famille) {
+				let bucket = context.familyBuckets.get(item.custom_la_famille);
+				if (!bucket) {
+					bucket = { items: [], qty: 0, amount: 0 };
+					context.familyBuckets.set(item.custom_la_famille, bucket);
+				}
+				bucket.items.push(item);
+				bucket.qty += qty;
+				bucket.amount += amount;
+			}
+
+			if (needCollection && !item.posa_is_offer && item.custom_la_collection) {
+				let bucket = context.collectionBuckets.get(item.custom_la_collection);
+				if (!bucket) {
+					bucket = { items: [], qty: 0, amount: 0 };
+					context.collectionBuckets.set(item.custom_la_collection, bucket);
+				}
+				bucket.items.push(item);
+				bucket.qty += qty;
+				bucket.amount += amount;
 			}
 
 			if (needTransaction && !item.posa_is_offer && !item.posa_is_replace) {
@@ -378,6 +433,12 @@ export default {
 		}
 		if (offer.apply_on === "Brand") {
 			return this.getBrandOffer({ ...offer }, context);
+		}
+		if (offer.apply_on === "Family") {
+			return this.getFamilyOffer({ ...offer }, context);
+		}
+		if (offer.apply_on === "Collection") {
+			return this.getCollectionOffer({ ...offer }, context);
 		}
 		if (offer.apply_on === "Transaction") {
 			return this.getTransactionOffer({ ...offer }, context);
@@ -638,6 +699,115 @@ export default {
 		offer.items = items;
 		return offer;
 	},
+
+	getFamilyOffer(offer, context = {}) {
+		if (!offer || offer.apply_on !== "Family") {
+			return null;
+		}
+
+		if (!this.checkOfferCoupon(offer)) {
+			return null;
+		}
+
+		const normalizedFamily = this.normalizeString(offer.apply_rule_on_family);
+		if (!normalizedFamily) {
+			return null;
+		}
+
+		const bucket = context.familyBuckets ? context.familyBuckets.get(normalizedFamily) : null;
+		if (!bucket) {
+			return null;
+		}
+
+		const items = [];
+		let totalQty = 0;
+		let totalAmount = 0;
+
+		bucket.items.forEach((item) => {
+			if (!item || item.posa_is_offer) {
+				return;
+			}
+			if (
+				offer.offer === "Item Price" &&
+				item.posa_offer_applied &&
+				!this.checkOfferIsAppley(item, offer)
+			) {
+				return;
+			}
+			const qty = this._resolveOfferQty(item);
+			const rate = item.original_price_list_rate ?? item.price_list_rate ?? 0;
+			totalQty += qty;
+			totalAmount += qty * rate;
+			items.push(item.posa_row_id);
+		});
+
+		if (!totalQty && !totalAmount) {
+			return null;
+		}
+
+		const res = this.checkQtyAnountOffer(offer, totalQty, totalAmount);
+		if (!res.apply) {
+			return null;
+		}
+
+		offer.items = items;
+		return offer;
+	},
+
+	getCollectionOffer(offer, context = {}) {
+		if (!offer || offer.apply_on !== "Collection") {
+			return null;
+		}
+
+		if (!this.checkOfferCoupon(offer)) {
+			return null;
+		}
+
+		const normalizedCollection = this.normalizeString(offer.apply_rule_on_collection);
+		if (!normalizedCollection) {
+			return null;
+		}
+
+		const bucket = context.collectionBuckets ? context.collectionBuckets.get(normalizedCollection) : null;
+		if (!bucket) {
+			return null;
+		}
+
+		const items = [];
+		let totalQty = 0;
+		let totalAmount = 0;
+
+		bucket.items.forEach((item) => {
+			if (!item || item.posa_is_offer) {
+				return;
+			}
+			if (
+				offer.offer === "Item Price" &&
+				item.posa_offer_applied &&
+				!this.checkOfferIsAppley(item, offer)
+			) {
+				return;
+			}
+			const qty = this._resolveOfferQty(item);
+			const rate = item.original_price_list_rate ?? item.price_list_rate ?? 0;
+			totalQty += qty;
+			totalAmount += qty * rate;
+			items.push(item.posa_row_id);
+		});
+
+		if (!totalQty && !totalAmount) {
+			return null;
+		}
+
+		const res = this.checkQtyAnountOffer(offer, totalQty, totalAmount);
+		if (!res.apply) {
+			return null;
+		}
+
+		offer.items = items;
+		return offer;
+	},
+
 	getTransactionOffer(offer, context = {}) {
 		if (!offer || offer.apply_on !== "Transaction") {
 			return null;
@@ -1561,6 +1731,12 @@ export default {
 					return true;
 				}
 				if (offer.apply_on === "Brand" && newItem.brand === offer.apply_brand) {
+					return true;
+				}
+				if (offer.apply_on === "Family" && newItem.custom_la_famille && this.normalizeString(newItem.custom_la_famille) === this.normalizeString(offer.apply_rule_on_family)) {
+					return true;
+				}
+				if (offer.apply_on === "Collection" && newItem.custom_la_collection && this.normalizeString(newItem.custom_la_collection) === this.normalizeString(offer.apply_rule_on_collection)) {
 					return true;
 				}
 				return false;
