@@ -181,7 +181,7 @@
 							{{ __("Print Draft") }}
 						</v-btn>
 					</v-col>
-					<v-col cols="6">
+					<!-- <v-col cols="6">
 						<v-btn
 							block
 							color="info"
@@ -193,7 +193,7 @@
 						>
 							{{ __("Apply Offers") }}
 						</v-btn>
-					</v-col>
+					</v-col> -->
 					<v-col cols="12">
 						<v-btn
 							block

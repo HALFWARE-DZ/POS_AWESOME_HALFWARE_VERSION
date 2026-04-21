@@ -27,6 +27,14 @@
 					</template>
 					<span>{{ item.pricing_rule_badge.tooltip }}</span>
 				</v-tooltip>
+				<v-chip 
+					v-if="item.posa_offer_applied" 
+					color="success" 
+					size="x-small" 
+					class="ml-1"
+				>
+					{{ __("Promotion") }}
+				</v-chip>
 				<v-btn
 					v-if="posProfile.posa_allow_line_item_name_override && !item.posa_is_replace"
 					icon

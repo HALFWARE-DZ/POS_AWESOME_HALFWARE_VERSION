@@ -1534,6 +1534,129 @@ export default {
 		}
 	},
 
+	async checkAndApplyOffersForNewItem(addedItem) {
+		try {
+			// Ensure we have offers loaded
+			if (!this.posOffers || !this.posOffers.length) {
+				return;
+			}
+
+			// Find the newly added item in the cart
+			const newItem = this.items.find(item => 
+				item.item_code === addedItem.item_code && 
+				item.posa_row_id === addedItem.posa_row_id
+			);
+
+			if (!newItem) {
+				return;
+			}
+
+			// Check offers that apply to this specific item
+			const applicableOffers = this.posOffers.filter(offer => {
+				// Check if offer applies to this item
+				if (offer.apply_on === "Item Code" && offer.apply_item_code === newItem.item_code) {
+					return true;
+				}
+				if (offer.apply_on === "Item Group" && newItem.item_group === offer.apply_item_group) {
+					return true;
+				}
+				if (offer.apply_on === "Brand" && newItem.brand === offer.apply_brand) {
+					return true;
+				}
+				return false;
+			});
+
+			// Apply auto-applicable offers immediately
+			let hasAutoOffer = false;
+			for (const offer of applicableOffers) {
+				if (offer.auto && this.isOfferApplicable(offer, newItem)) {
+					await this.applyOfferToItem(offer, newItem);
+					hasAutoOffer = true;
+				}
+			}
+
+			// Show notification if offers were applied
+			if (hasAutoOffer) {
+				this.eventBus.emit("show_message", {
+					title: __("Offer Applied"),
+					color: "success",
+					indeterminate: false,
+				});
+			}
+
+		} catch (error) {
+			console.error("Error checking offers for new item:", error);
+		}
+	},
+
+	isOfferApplicable(offer, item) {
+		// Check minimum quantity
+		if (offer.min_qty && item.qty < offer.min_qty) {
+			return false;
+		}
+
+		// Check minimum amount
+		if (offer.min_amt) {
+			const itemAmount = item.qty * item.rate;
+			if (itemAmount < offer.min_amt) {
+				return false;
+			}
+		}
+
+		// Additional conditions can be added here
+		return true;
+	},
+
+	async applyOfferToItem(offer, item) {
+		try {
+			// Mark the offer as applied
+			const offerIndex = this.posOffers.findIndex(o => o.name === offer.name);
+			if (offerIndex !== -1) {
+				this.posOffers[offerIndex].offer_applied = true;
+			}
+
+			// Apply the offer based on its type
+			if (offer.offer === "Item Price") {
+				await this.applyItemPriceOffer(offer, item);
+			} else if (offer.offer === "Give Product") {
+				await this.applyGiveProductOffer(offer, item);
+			}
+
+			// Update the item's offer status
+			item.posa_offer_applied = 1;
+			
+			// Force UI update
+			this.$forceUpdate();
+
+		} catch (error) {
+			console.error("Error applying offer to item:", error);
+		}
+	},
+
+	async applyItemPriceOffer(offer, item) {
+		// Apply discount based on offer type
+		if (offer.discount_type === "Percentage") {
+			item.discount_percentage = offer.discount_percentage || 0;
+		} else if (offer.discount_type === "Amount") {
+			item.discount_amount = offer.discount_amount || 0;
+		} else if (offer.discount_type === "Rate") {
+			item.rate = offer.rate || item.rate;
+		}
+
+		// Add offer to item's offer list
+		const itemOffers = item.posa_offers ? JSON.parse(item.posa_offers) : [];
+		if (!itemOffers.includes(offer.name)) {
+			itemOffers.push(offer.name);
+			item.posa_offers = JSON.stringify(itemOffers);
+		}
+	},
+
+	async applyGiveProductOffer(offer, item) {
+		// This would add a free item to the cart
+		// Implementation depends on the specific give product logic
+		console.log("Give Product offer applied:", offer.name);
+	},
+
 	validate_due_date(item) {
 		const today = frappe.datetime.now_date();
 		const parse_today = Date.parse(today);

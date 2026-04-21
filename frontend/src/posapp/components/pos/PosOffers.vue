@@ -199,7 +199,13 @@ export default {
 				const pos_offer = this.pos_offers.find((pos_offer) => offer.name === pos_offer.name);
 				if (pos_offer) {
 					pos_offer.items = offer.items;
-					if (pos_offer.offer === "Grand Total" && !this.discount_percentage_offer_name) {
+					// Apply auto logic for all offer types, not just Grand Total
+					if (
+						(pos_offer.offer === "Grand Total" && !this.discount_percentage_offer_name) ||
+						pos_offer.offer === "Item Price" ||
+						pos_offer.offer === "Give Product" ||
+						pos_offer.offer === "Loyalty Point"
+					) {
 						pos_offer.offer_applied = !!pos_offer.auto;
 					}
 					if (
@@ -241,10 +247,13 @@ export default {
 						}
 					}
 					this.pos_offers.push(newOffer);
-					this.eventBus.emit("show_message", {
-						title: __("New Offer Available"),
-						color: "warning",
-					});
+					// Only show "New Offer Available" for offers that are not auto-applied
+					if (!newOffer.offer_applied) {
+						this.eventBus.emit("show_message", {
+							title: __("New Offer Available"),
+							color: "warning",
+						});
+					}
 				}
 			});
 		},

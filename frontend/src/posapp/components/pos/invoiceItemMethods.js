@@ -1421,6 +1421,11 @@ export default {
 			item_after: this._buildPriceListSnapshot([item]),
 		});
 
+		// Immediately trigger offer evaluation for the newly added item
+		if (res && res.posa_row_id) {
+			this.scheduleOfferRefresh([res.posa_row_id]);
+		}
+
 		const shouldNotify =
 			options?.notifyOnSuccess === true && !options?.skipNotification && this.eventBus?.emit;
 
