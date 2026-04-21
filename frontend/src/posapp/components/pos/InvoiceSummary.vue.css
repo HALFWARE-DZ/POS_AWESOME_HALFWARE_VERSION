@@ -12,7 +12,6 @@
 	color: var(--pos-text-primary) !important;
 }
 
-/* Enhanced button styling with better performance */
 .summary-btn {
 	transition: all 0.2s ease !important;
 	position: relative;
@@ -33,7 +32,6 @@
 	transform: translateY(0);
 }
 
-/* Special styling for the PAY button */
 .pay-btn {
 	font-weight: 600 !important;
 	font-size: 1.1rem !important;
@@ -47,7 +45,6 @@
 	transform: translateY(-2px);
 }
 
-/* Enhanced field styling */
 .summary-field {
 	transition: all 0.2s ease;
 }
@@ -57,39 +54,19 @@
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Responsive optimizations */
 @media (max-width: 768px) {
-	.summary-btn {
-		font-size: 0.875rem !important;
-		padding: 8px 12px !important;
-	}
-
-	.pay-btn {
-		font-size: 1rem !important;
-	}
-
-	.summary-field {
-		font-size: 0.875rem;
-	}
+	.summary-btn { font-size: 0.875rem !important; padding: 8px 12px !important; }
+	.pay-btn { font-size: 1rem !important; }
+	.summary-field { font-size: 0.875rem; }
 }
 
 @media (max-width: 480px) {
-	.summary-btn {
-		font-size: 0.8rem !important;
-		padding: 6px 8px !important;
-	}
-
-	.pay-btn {
-		font-size: 0.95rem !important;
-	}
+	.summary-btn { font-size: 0.8rem !important; padding: 6px 8px !important; }
+	.pay-btn { font-size: 0.95rem !important; }
 }
 
-/* Loading state animations */
-.summary-btn:deep(.v-btn__loader) {
-	opacity: 0.8;
-}
+.summary-btn:deep(.v-btn__loader) { opacity: 0.8; }
 
-/* Dark theme enhancements */
 :deep([data-theme="dark"]) .summary-btn,
 :deep(.v-theme--dark) .summary-btn {
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;

@@ -19,12 +19,13 @@
 							color="accent"
 						/>
 					</v-col>
+
 					<!-- Additional Discount (Amount or Percentage) -->
 					<v-col cols="6" v-if="!pos_profile.posa_use_percentage_discount">
 						<v-text-field
 							ref="additionalDiscountField"
 							v-model="additionalDiscountDisplay"
-							@update:model-value="handleAdditionalDiscountUpdate"
+							@change="handleAdditionalDiscountChange"
 							@focus="handleAdditionalDiscountFocus"
 							@blur="handleAdditionalDiscountBlur"
 							:label="frappe._('Additional Discount')"
@@ -45,8 +46,7 @@
 						<v-text-field
 							ref="additionalDiscountField"
 							v-model="additionalDiscountPercentageDisplay"
-							@update:model-value="handleAdditionalDiscountPercentageUpdate"
-							@change="$emit('update_discount_umount')"
+							@change="handleAdditionalDiscountPercentageChange"
 							@focus="handleAdditionalDiscountPercentageFocus"
 							@blur="handleAdditionalDiscountPercentageBlur"
 							:rules="[isNumber]"
@@ -84,7 +84,7 @@
 						<v-text-field
 							ref="totalField"
 							v-model="editableTotalDisplay"
-							@update:model-value="handleTotalUpdate"
+							@change="handleTotalChange"
 							@focus="handleTotalFocus"
 							@blur="handleTotalBlur"
 							:label="frappe._('Total')"
@@ -233,7 +233,6 @@ export default {
 	},
 	data() {
 		return {
-			// Loading states for better UX
 			saveLoading: false,
 			loadDraftsLoading: false,
 			selectOrderLoading: false,
@@ -242,11 +241,13 @@ export default {
 			printLoading: false,
 			applyOffersLoading: false,
 			paymentLoading: false,
-			additionalDiscountDisplay: null,
-			additionalDiscountPercentageDisplay: null,
+			// Local display values — kept in sync with props via watchers
+			additionalDiscountDisplay: "",
+			additionalDiscountPercentageDisplay: "",
+			editableTotalDisplay: "",
+			// Guards to prevent watchers overwriting input while user is typing
 			isEditingAdditionalDiscount: false,
 			isEditingAdditionalDiscountPercentage: false,
-			editableTotalDisplay: null,
 			isEditingTotal: false,
 		};
 	},
@@ -276,191 +277,164 @@ export default {
 			}
 			return false;
 		},
-		originalGrandTotal() {
-			// Calculate the original grand total (subtotal - items discount)
-			return (parseFloat(this.subtotal) || 0) - (parseFloat(this.total_items_discount_amount) || 0);
+		// Calculate the grand total that should be displayed
+		grandTotalDisplay() {
+			const subtotal = parseFloat(this.subtotal) || 0;
+			const itemsDisc = parseFloat(this.total_items_discount_amount) || 0;
+			const addDisc = parseFloat(this.additional_discount) || 0;
+			return Math.max(0, subtotal - itemsDisc - addDisc);
 		},
 	},
 	watch: {
 		additional_discount(value) {
 			if (!this.isEditingAdditionalDiscount) {
-				this.additionalDiscountDisplay = this.normalizeDiscountDisplay(value);
+				this.additionalDiscountDisplay = this.toDisplayString(value);
 			}
 		},
 		additional_discount_percentage(value) {
 			if (!this.isEditingAdditionalDiscountPercentage) {
-				this.additionalDiscountPercentageDisplay = this.normalizeDiscountDisplay(value);
+				this.additionalDiscountPercentageDisplay = this.toDisplayString(value);
 			}
 		},
-		originalGrandTotal(newVal) {
-			// Update editable total when original changes, but only if not editing
+		grandTotalDisplay(newVal) {
+			// Only sync display when user is not actively editing the total field
 			if (!this.isEditingTotal && newVal !== undefined) {
-				this.editableTotalDisplay = this.normalizeDiscountDisplay(newVal);
+				this.editableTotalDisplay = this.toDisplayString(newVal);
 			}
 		},
 	},
 	created() {
-		this.additionalDiscountDisplay = this.normalizeDiscountDisplay(this.additional_discount);
-		this.additionalDiscountPercentageDisplay = this.normalizeDiscountDisplay(
-			this.additional_discount_percentage,
-		);
-		// Initialize editable total with current grand total
-		this.editableTotalDisplay = this.normalizeDiscountDisplay(this.originalGrandTotal);
+		this.additionalDiscountDisplay = this.toDisplayString(this.additional_discount);
+		this.additionalDiscountPercentageDisplay = this.toDisplayString(this.additional_discount_percentage);
+		this.editableTotalDisplay = this.toDisplayString(this.grandTotalDisplay);
 	},
 	methods: {
-		normalizeDiscountDisplay(value) {
-			if (value === 0 || value === "0") {
-				return "";
-			}
-			// Format as currency with 2 decimal places to avoid errors
-			return this.formatCurrency(value);
+		// Convert a number to a display string: 0 → "" so field looks empty, otherwise raw number
+		toDisplayString(value) {
+			const n = parseFloat(value);
+			if (!n || n === 0) return "";
+			return String(n);
 		},
 
-		// Debounced handlers for better performance
-		handleAdditionalDiscountUpdate(value) {
-			this.$emit("update:additional_discount", value);
+		// Strip any formatting (commas, currency symbols) and return a clean number
+		parseInput(val) {
+			return parseFloat(String(val || "").replace(/[^\d.]/g, "")) || 0;
 		},
 
+		// ── Additional Discount (amount) ──────────────────────────────────
 		handleAdditionalDiscountFocus() {
 			this.isEditingAdditionalDiscount = true;
+			// Show raw number so user can edit cleanly
+			const raw = parseFloat(this.additional_discount) || 0;
+			this.additionalDiscountDisplay = raw > 0 ? String(raw) : "";
 		},
-
+		handleAdditionalDiscountChange() {
+			// Fires on Enter — emit the parsed value
+			const parsed = this.parseInput(this.additionalDiscountDisplay);
+			this.$emit("update:additional_discount", parsed);
+		},
 		handleAdditionalDiscountBlur() {
 			this.isEditingAdditionalDiscount = false;
+			// Emit final parsed value on blur
+			const parsed = this.parseInput(this.additionalDiscountDisplay);
+			this.$emit("update:additional_discount", parsed);
+			// Reset display to plain number (watcher will reformat if prop changes)
+			this.additionalDiscountDisplay = this.toDisplayString(parsed);
 		},
 
+		// ── Additional Discount (percentage) ─────────────────────────────
+		handleAdditionalDiscountPercentageFocus() {
+			this.isEditingAdditionalDiscountPercentage = true;
+			const raw = parseFloat(this.additional_discount_percentage) || 0;
+			this.additionalDiscountPercentageDisplay = raw > 0 ? String(raw) : "";
+		},
+		handleAdditionalDiscountPercentageChange() {
+			const parsed = this.parseInput(this.additionalDiscountPercentageDisplay);
+			this.$emit("update:additional_discount_percentage", parsed);
+			this.$emit("update_discount_umount");
+		},
+		handleAdditionalDiscountPercentageBlur() {
+			this.isEditingAdditionalDiscountPercentage = false;
+			const parsed = this.parseInput(this.additionalDiscountPercentageDisplay);
+			this.$emit("update:additional_discount_percentage", parsed);
+			this.$emit("update_discount_umount");
+			this.additionalDiscountPercentageDisplay = this.toDisplayString(parsed);
+		},
+
+		// ── Editable Total ─────────────────────────────────────────────────────
+		handleTotalFocus() {
+			this.isEditingTotal = true;
+			// Show raw number while editing
+			const raw = parseFloat(this.grandTotalDisplay) || 0;
+			this.editableTotalDisplay = raw > 0 ? String(raw) : "";
+		},
+		handleTotalBlur() {
+			this.isEditingTotal = false;
+			this.applyTotalEdit();
+		},
+		handleTotalChange() {
+			// Also apply on Enter (change event)
+			this.applyTotalEdit();
+		},
+		applyTotalEdit() {
+			const parsedNewTotal = this.parseInput(this.editableTotalDisplay);
+			const subtotal = parseFloat(this.subtotal) || 0;
+			const itemsDisc = parseFloat(this.total_items_discount_amount) || 0;
+			// Base = subtotal minus items-level discounts (not additional)
+			const baseBeforeAdditional = Math.max(0, subtotal - itemsDisc);
+
+			if (parsedNewTotal <= 0 || parsedNewTotal > baseBeforeAdditional) {
+				// Invalid — reset to current grand total
+				this.$emit("update:additional_discount", 0);
+				this.editableTotalDisplay = this.toDisplayString(baseBeforeAdditional);
+				return;
+			}
+
+			const discountAmount = baseBeforeAdditional - parsedNewTotal;
+			this.$emit("update:additional_discount", discountAmount);
+			// Reformat display to confirm
+			this.editableTotalDisplay = this.toDisplayString(parsedNewTotal);
+		},
+
+		// ── Utility ───────────────────────────────────────────────────────
 		focusAdditionalDiscountField() {
 			const field = this.$refs.additionalDiscountField;
 			const input = field?.$el?.querySelector?.("input");
-			if (input?.disabled) {
-				return;
-			}
-			input?.focus?.();
+			if (!input?.disabled) input?.focus?.();
 		},
 
-		handleAdditionalDiscountPercentageUpdate(value) {
-			this.$emit("update:additional_discount_percentage", value);
-		},
-
-		handleAdditionalDiscountPercentageFocus() {
-			this.isEditingAdditionalDiscountPercentage = true;
-		},
-
-		handleAdditionalDiscountPercentageBlur() {
-			this.isEditingAdditionalDiscountPercentage = false;
-		},
-
+		// ── Button handlers ───────────────────────────────────────────────
 		async handleSaveAndClear() {
 			this.saveLoading = true;
-			try {
-				await this.$emit("save-and-clear");
-			} finally {
-				this.saveLoading = false;
-			}
+			try { await this.$emit("save-and-clear"); } finally { this.saveLoading = false; }
 		},
-
 		async handleLoadDrafts() {
 			this.loadDraftsLoading = true;
-			try {
-				await this.$emit("load-drafts");
-			} finally {
-				this.loadDraftsLoading = false;
-			}
+			try { await this.$emit("load-drafts"); } finally { this.loadDraftsLoading = false; }
 		},
-
 		async handleSelectOrder() {
 			this.selectOrderLoading = true;
-			try {
-				await this.$emit("select-order");
-			} finally {
-				this.selectOrderLoading = false;
-			}
+			try { await this.$emit("select-order"); } finally { this.selectOrderLoading = false; }
 		},
-
 		async handleCancelSale() {
 			this.cancelLoading = true;
-			try {
-				await this.$emit("cancel-sale");
-			} finally {
-				this.cancelLoading = false;
-			}
+			try { await this.$emit("cancel-sale"); } finally { this.cancelLoading = false; }
 		},
-
 		async handleOpenReturns() {
 			this.returnsLoading = true;
-			try {
-				await this.$emit("open-returns");
-			} finally {
-				this.returnsLoading = false;
-			}
+			try { await this.$emit("open-returns"); } finally { this.returnsLoading = false; }
 		},
-
 		async handlePrintDraft() {
 			this.printLoading = true;
-			try {
-				await this.$emit("print-draft");
-			} finally {
-				this.printLoading = false;
-			}
+			try { await this.$emit("print-draft"); } finally { this.printLoading = false; }
 		},
-
 		async handleApplyOffers() {
 			this.applyOffersLoading = true;
-			try {
-				await this.$emit("apply-offers");
-			} finally {
-				this.applyOffersLoading = false;
-			}
+			try { await this.$emit("apply-offers"); } finally { this.applyOffersLoading = false; }
 		},
-
 		async handleShowPayment() {
 			this.paymentLoading = true;
-			try {
-				await this.$emit("show-payment");
-			} finally {
-				this.paymentLoading = false;
-			}
-		},
-
-		// Total editing handlers
-		handleTotalUpdate(value) {
-			this.calculateAndApplyDiscount(value);
-		},
-
-		handleTotalFocus() {
-			this.isEditingTotal = true;
-		},
-
-		handleTotalBlur() {
-			this.isEditingTotal = false;
-		},
-
-		calculateAndApplyDiscount(newTotal) {
-			if (!newTotal || !this.originalGrandTotal) {
-				return;
-			}
-
-			// Parse the input value - handle both "5000" and "5000.00" formats
-			const parsedNewTotal = parseFloat(newTotal.toString().replace(/[^\d.-]/g, '')) || 0;
-			const baseTotal = parseFloat(this.originalGrandTotal) || 0;
-			
-			if (parsedNewTotal <= 0) {
-				// Reset to original if invalid
-				this.editableTotalDisplay = this.normalizeDiscountDisplay(baseTotal);
-				this.$emit("update:additional_discount", 0);
-				return;
-			}
-
-			// Calculate the discount needed
-			const discountAmount = baseTotal - parsedNewTotal;
-			
-			// Apply the discount by emitting the update event
-			if (discountAmount >= 0) {
-				this.$emit("update:additional_discount", discountAmount);
-			} else {
-				// If new total is higher than base, set discount to 0
-				this.$emit("update:additional_discount", 0);
-			}
+			try { await this.$emit("show-payment"); } finally { this.paymentLoading = false; }
 		},
 	},
 };
@@ -480,7 +454,6 @@ export default {
 	color: var(--pos-text-primary) !important;
 }
 
-/* Enhanced button styling with better performance */
 .summary-btn {
 	transition: all 0.2s ease !important;
 	position: relative;
@@ -501,7 +474,6 @@ export default {
 	transform: translateY(0);
 }
 
-/* Special styling for the PAY button */
 .pay-btn {
 	font-weight: 600 !important;
 	font-size: 1.1rem !important;
@@ -515,7 +487,6 @@ export default {
 	transform: translateY(-2px);
 }
 
-/* Enhanced field styling */
 .summary-field {
 	transition: all 0.2s ease;
 }
@@ -525,39 +496,19 @@ export default {
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Responsive optimizations */
 @media (max-width: 768px) {
-	.summary-btn {
-		font-size: 0.875rem !important;
-		padding: 8px 12px !important;
-	}
-
-	.pay-btn {
-		font-size: 1rem !important;
-	}
-
-	.summary-field {
-		font-size: 0.875rem;
-	}
+	.summary-btn { font-size: 0.875rem !important; padding: 8px 12px !important; }
+	.pay-btn { font-size: 1rem !important; }
+	.summary-field { font-size: 0.875rem; }
 }
 
 @media (max-width: 480px) {
-	.summary-btn {
-		font-size: 0.8rem !important;
-		padding: 6px 8px !important;
-	}
-
-	.pay-btn {
-		font-size: 0.95rem !important;
-	}
+	.summary-btn { font-size: 0.8rem !important; padding: 6px 8px !important; }
+	.pay-btn { font-size: 0.95rem !important; }
 }
 
-/* Loading state animations */
-.summary-btn:deep(.v-btn__loader) {
-	opacity: 0.8;
-}
+.summary-btn:deep(.v-btn__loader) { opacity: 0.8; }
 
-/* Dark theme enhancements */
 :deep([data-theme="dark"]) .summary-btn,
 :deep(.v-theme--dark) .summary-btn {
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
