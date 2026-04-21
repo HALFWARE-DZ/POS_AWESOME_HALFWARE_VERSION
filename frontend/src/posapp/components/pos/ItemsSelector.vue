@@ -4123,6 +4123,9 @@ export default {
 
 				}, 300);
 
+				// Trigger offers refresh to ensure offers are available after items reload
+				this.eventBus.emit("reload_offers");
+
 			} catch (error) {
 
 				console.error("Failed to reload items:", error);

@@ -191,6 +191,11 @@ export default {
 					this.get_offers(data.pos_profile.name, data.pos_profile);
 				}
 			});
+			this.eventBus.on("reload_offers", () => {
+				if (this.pos_profile) {
+					this.get_offers(this.pos_profile.name, this.pos_profile);
+				}
+			});
 			this.eventBus.on("show_payment", (data) => {
 				this.payment = data === "true";
 				this.showOffers = false;
