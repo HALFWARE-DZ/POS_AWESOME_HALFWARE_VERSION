@@ -79,23 +79,22 @@
 						/>
 					</v-col>
 
-					<!-- Total (Editable) -->
+					<!-- Total — editable: typing a new total auto-calculates additional discount -->
 					<v-col cols="6">
 						<v-text-field
-							ref="totalField"
 							v-model="editableTotalDisplay"
-							@change="handleTotalChange"
-							@focus="handleTotalFocus"
-							@blur="handleTotalBlur"
+							:prefix="currencySymbol(displayCurrency)"
 							:label="frappe._('Total')"
 							prepend-inner-icon="mdi-cash"
 							variant="solo"
 							density="compact"
 							color="primary"
-							:prefix="currencySymbol(displayCurrency)"
 							:disabled="!pos_profile.posa_allow_user_to_edit_additional_discount"
 							class="summary-field"
-							:placeholder="formatCurrency(0)"
+							@focus="handleTotalFocus"
+							@change="handleTotalChange"
+							@blur="handleTotalBlur"
+							@keydown.enter="handleTotalChange"
 						/>
 					</v-col>
 				</v-row>
@@ -245,7 +244,6 @@ export default {
 			additionalDiscountDisplay: "",
 			additionalDiscountPercentageDisplay: "",
 			editableTotalDisplay: "",
-			// Guards to prevent watchers overwriting input while user is typing
 			isEditingAdditionalDiscount: false,
 			isEditingAdditionalDiscountPercentage: false,
 			isEditingTotal: false,
@@ -277,18 +275,15 @@ export default {
 			}
 			return false;
 		},
-		// Calculate the grand total that should be displayed
-		grandTotalDisplay() {
-			const subtotal = parseFloat(this.subtotal) || 0;
-			const itemsDisc = parseFloat(this.total_items_discount_amount) || 0;
-			const addDisc = parseFloat(this.additional_discount) || 0;
-			return Math.max(0, subtotal - itemsDisc - addDisc);
-		},
 	},
 	watch: {
 		additional_discount(value) {
 			if (!this.isEditingAdditionalDiscount) {
 				this.additionalDiscountDisplay = this.toDisplayString(value);
+			}
+			// Also resync total display when discount changes externally (e.g. offers applied)
+			if (!this.isEditingTotal) {
+				this.editableTotalDisplay = this.toDisplayString(this.subtotal);
 			}
 		},
 		additional_discount_percentage(value) {
@@ -296,17 +291,17 @@ export default {
 				this.additionalDiscountPercentageDisplay = this.toDisplayString(value);
 			}
 		},
-		grandTotalDisplay(newVal) {
-			// Only sync display when user is not actively editing the total field
-			if (!this.isEditingTotal && newVal !== undefined) {
-				this.editableTotalDisplay = this.toDisplayString(newVal);
+		// Keep total display in sync whenever parent recalculates grand_total
+		subtotal(value) {
+			if (!this.isEditingTotal) {
+				this.editableTotalDisplay = this.toDisplayString(value);
 			}
 		},
 	},
 	created() {
 		this.additionalDiscountDisplay = this.toDisplayString(this.additional_discount);
 		this.additionalDiscountPercentageDisplay = this.toDisplayString(this.additional_discount_percentage);
-		this.editableTotalDisplay = this.toDisplayString(this.grandTotalDisplay);
+		this.editableTotalDisplay = this.toDisplayString(this.subtotal);
 	},
 	methods: {
 		// Convert a number to a display string: 0 → "" so field looks empty, otherwise raw number
@@ -361,39 +356,41 @@ export default {
 			this.additionalDiscountPercentageDisplay = this.toDisplayString(parsed);
 		},
 
-		// ── Editable Total ─────────────────────────────────────────────────────
+		// ── Editable Total ────────────────────────────────────────────────
+		// KEY FORMULA:
+		//   subtotal (from parent) = grand_total = items_total - items_disc - additional_disc
+		//   base_before_additional  = subtotal + additional_discount
+		//   when user types newTotal → discountNeeded = base_before_additional - newTotal
 		handleTotalFocus() {
 			this.isEditingTotal = true;
-			// Show raw number while editing
-			const raw = parseFloat(this.grandTotalDisplay) || 0;
+			// Show plain number so user can type without fighting formatting
+			const raw = parseFloat(this.subtotal) || 0;
 			this.editableTotalDisplay = raw > 0 ? String(raw) : "";
+		},
+		handleTotalChange() {
+			this._applyTotalEdit();
 		},
 		handleTotalBlur() {
 			this.isEditingTotal = false;
-			this.applyTotalEdit();
+			this._applyTotalEdit();
 		},
-		handleTotalChange() {
-			// Also apply on Enter (change event)
-			this.applyTotalEdit();
-		},
-		applyTotalEdit() {
-			const parsedNewTotal = this.parseInput(this.editableTotalDisplay);
-			const subtotal = parseFloat(this.subtotal) || 0;
-			const itemsDisc = parseFloat(this.total_items_discount_amount) || 0;
-			// Base = subtotal minus items-level discounts (not additional)
-			const baseBeforeAdditional = Math.max(0, subtotal - itemsDisc);
+		_applyTotalEdit() {
+			const newTotal = this.parseInput(this.editableTotalDisplay);
+			// base = what the total would be with zero additional discount
+			const baseBeforeAdditional =
+				(parseFloat(this.subtotal) || 0) + (parseFloat(this.additional_discount) || 0);
 
-			if (parsedNewTotal <= 0 || parsedNewTotal > baseBeforeAdditional) {
-				// Invalid — reset to current grand total
+			if (newTotal <= 0 || newTotal > baseBeforeAdditional) {
+				// Invalid input → reset to current grand total, clear additional discount
 				this.$emit("update:additional_discount", 0);
 				this.editableTotalDisplay = this.toDisplayString(baseBeforeAdditional);
 				return;
 			}
 
-			const discountAmount = baseBeforeAdditional - parsedNewTotal;
-			this.$emit("update:additional_discount", discountAmount);
-			// Reformat display to confirm
-			this.editableTotalDisplay = this.toDisplayString(parsedNewTotal);
+			const discountNeeded = baseBeforeAdditional - newTotal;
+			this.$emit("update:additional_discount", discountNeeded);
+			// Show what was typed (parent will update subtotal prop → watcher will reformat on blur)
+			this.editableTotalDisplay = this.toDisplayString(newTotal);
 		},
 
 		// ── Utility ───────────────────────────────────────────────────────
