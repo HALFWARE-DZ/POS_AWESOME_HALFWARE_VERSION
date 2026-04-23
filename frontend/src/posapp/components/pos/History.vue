@@ -1014,11 +1014,6 @@ export default {
 					filters.push(['posting_date', '<=', this.filters.to_date]);
 				}
 				
-				// Filter by POS opening shift if available
-				if (posData.pos_opening_shift) {
-					filters.push(['reference_no', '=', posData.pos_opening_shift]);
-				}
-				
 				// Get both incoming (Receive) and outgoing (Pay) payments
 				filters.push(['payment_type', 'in', ['Pay', 'Receive']]);
 				filters.push(['docstatus', '=', 1]); // Only submitted payments

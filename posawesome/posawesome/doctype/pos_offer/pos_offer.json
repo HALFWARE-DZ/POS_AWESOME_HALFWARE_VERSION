@@ -22,6 +22,7 @@
   "item",
   "item_group",
   "brand",
+  "apply_rule_on_template",
   "valid_from",
   "valid_upto",
   "coupon_based",
@@ -48,6 +49,7 @@
   "rate",
   "discount_amount",
   "discount_percentage",
+  "buying_price",
   "loyalty_point_scheme_section",
   "loyalty_program",
   "loyalty_points"
@@ -79,7 +81,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Qualifying Transaction / Item",
-   "options": "\nItem Code\nItem Group\nBrand\nTransaction",
+   "options": "\nItem Code\nItem Group\nBrand\nTransaction\nTemplate",
    "reqd": 1
   },
   {
@@ -127,6 +129,12 @@
    "fieldtype": "Link",
    "label": "Apply Rule On Brand",
    "options": "Brand"
+  },
+  {
+   "fieldname": "apply_rule_on_template",
+   "fieldtype": "Link",
+   "label": "Apply Rule On Template",
+   "options": "Item Template"
   },
   {
    "default": "0",
@@ -202,7 +210,7 @@
    "fieldname": "discount_type",
    "fieldtype": "Select",
    "label": "Discount Type",
-   "options": "\nRate\nDiscount Percentage\nDiscount Amount"
+   "options": "\nRate\nDiscount Percentage\nDiscount Amount\nBuying Price"
   },
   {
    "fieldname": "column_break_26",
@@ -222,6 +230,11 @@
    "fieldname": "discount_percentage",
    "fieldtype": "Float",
    "label": "Discount Percentage"
+  },
+  {
+   "fieldname": "buying_price",
+   "fieldtype": "Float",
+   "label": "Buying Price"
   },
   {
    "fieldname": "product_discount_scheme_section",

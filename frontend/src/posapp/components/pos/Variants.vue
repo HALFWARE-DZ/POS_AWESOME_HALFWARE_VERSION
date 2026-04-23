@@ -207,9 +207,9 @@ export default {
 			return 'text-success';
 		},
 		getStockText(qty) {
-			if (!qty || qty <= 0) return 'Out of Stock';
-			if (qty < 5) return `Only ${qty} left`;
-			return `${qty} in stock`;
+			if (!qty || qty <= 0) return 'En rupture de stock';
+			if (qty < 5) return `Il n'y a que ${qty} en stock`;
+			return `${qty} en stock`;
 		},
 		applyCurrencyConversionToItem(item) {
 			if (!item) return;
@@ -372,6 +372,14 @@ export default {
 		},
 		async add_item(item) {
 			console.log("add_item called", item.item_code);
+			
+			// Check if item has zero quantity and prevent adding to cart
+			if (!item.actual_qty || item.actual_qty <= 0) {
+				console.log("Item out of stock, cannot add to cart:", item.item_code);
+				// You could show a toast or notification here if needed
+				return;
+			}
+			
 			await this.fetchVariantRate(item);
 			const payload = { ...item, code: item.item_code };
 			console.log("emitting add_item", {

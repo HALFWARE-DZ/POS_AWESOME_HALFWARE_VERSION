@@ -529,6 +529,8 @@ def _build_search_plan(
         "max_discount",
         "brand",
         "allow_negative_stock",
+        "custom_la_famille",
+        "custom_la_collection",
     ]
     if include_description:
         fields.append("description")
@@ -817,6 +819,8 @@ def get_item_variants(pos_profile, parent_item_code, price_list=None, customer=N
         "max_discount",
         "brand",
         "allow_negative_stock",
+        "custom_la_famille",
+        "custom_la_collection",
     ]
 
     items_data = frappe.get_all(

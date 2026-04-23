@@ -68,6 +68,9 @@ const controllers = (frm) => {
 	frm.toggle_display("brand", frm.doc.apply_on === "Brand");
 	frm.toggle_reqd("brand", frm.doc.apply_on === "Brand");
 
+	frm.toggle_display("apply_rule_on_template", frm.doc.apply_on === "Template");
+	frm.toggle_reqd("apply_rule_on_template", frm.doc.apply_on === "Template");
+
 	frm.toggle_reqd("min_amt", frm.doc.apply_on === "Transaction");
 
 	frm.toggle_display("apply_for_section", frm.doc.offer === "Give Product");
@@ -117,6 +120,9 @@ const controllers = (frm) => {
 	frm.toggle_display("discount_percentage", frm.doc.discount_type === "Discount Percentage");
 	frm.toggle_reqd("discount_percentage", frm.doc.discount_type === "Discount Percentage");
 
+	frm.toggle_display("buying_price", frm.doc.discount_type === "Buying Price");
+	frm.toggle_reqd("buying_price", frm.doc.discount_type === "Buying Price");
+
 	frm.toggle_display("loyalty_point_scheme_section", frm.doc.offer === "Loyalty Point");
 	frm.toggle_display("loyalty_program", frm.doc.offer === "Loyalty Point");
 	frm.toggle_reqd("loyalty_program", frm.doc.offer === "Loyalty Point");
@@ -132,6 +138,7 @@ const controllers = (frm) => {
 			"Rate",
 			"Discount Percentage",
 			"Discount Amount",
+			"Buying Price",
 		]);
 	}
 
@@ -202,6 +209,13 @@ const set_filters = (frm) => {
 		};
 	});
 	frm.set_query("apply_item_group", function () {
+		return {
+			filters: {
+				is_group: 0,
+			},
+		};
+	});
+	frm.set_query("apply_rule_on_template", function () {
 		return {
 			filters: {
 				is_group: 0,
