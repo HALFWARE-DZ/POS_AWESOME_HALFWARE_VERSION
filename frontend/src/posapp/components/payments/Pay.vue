@@ -387,7 +387,7 @@
 					</div>
 					<div class="pb-6 pr-6" style="position: absolute; bottom: 0; width: 100%">
 						<v-row>
-							<v-col cols="6" class="pr-1">
+							<v-col cols="12">
 								<v-btn
 									block
 									size="large"
@@ -398,19 +398,6 @@
 									:loading="isSubmitting"
 								>
 									{{ __("Submit") }}
-								</v-btn>
-							</v-col>
-							<v-col cols="6" class="pl-1">
-								<v-btn
-									block
-									size="large"
-									color="success"
-									theme="dark"
-									@click="submit_and_print()"
-									:disabled="vaildatPayment || isSubmitting"
-									:loading="isSubmitting"
-								>
-									{{ __("Submit & Print") }}
 								</v-btn>
 							</v-col>
 						</v-row>
@@ -1066,12 +1053,9 @@ export default {
 		},
 
 		submit() {
-			return this.processPayment({ printAfter: false });
+			return this.processPayment({ printFormat: "Bon de payment" });
 		},
-		submit_and_print() {
-			return this.processPayment({ printAfter: true });
-		},
-		async processPayment({ printAfter = false } = {}) {
+		async processPayment({ printFormat = null } = {}) {
 			if (this.isSubmitting) return;
 
 			this.isSubmitting = true;
@@ -1232,7 +1216,7 @@ export default {
 
 				frappe.utils.play_sound("submit");
 
-				if (printAfter) {
+				if (printFormat) {
 					console.log("Server response:", JSON.stringify(response.message));
 					const payment_name =
 						response.message.new_payments_entry && response.message.new_payments_entry.length > 0
@@ -1240,8 +1224,8 @@ export default {
 							: null;
 
 					if (payment_name) {
-						console.log("Opening print view with payment name:", payment_name);
-						this.load_print_page(payment_name);
+						console.log("Opening print view with payment name:", payment_name, "format:", printFormat);
+						this.load_print_page(payment_name, printFormat);
 					} else {
 						console.log("No payment_name found in response");
 						frappe.msgprint(
@@ -1426,7 +1410,7 @@ export default {
 			return this.isInvoiceSelected(item) ? "selected-row bg-primary bg-lighten-4" : "";
 		},
 
-		load_print_page(payment_name) {
+		load_print_page(payment_name, printFormat = null) {
 			if (!payment_name) {
 				frappe.msgprint(__("Payment name not found. Cannot open print view."));
 				return;
@@ -1440,6 +1424,11 @@ export default {
 				"&name=" +
 				payment_name +
 				"&trigger_print=1";
+
+			// Add print format if specified
+			if (printFormat) {
+				url += "&format=" + encodeURIComponent(printFormat);
+			}
 
 			url = appendDebugPrintParam(url, debugPrint);
 			console.log("Opening printing URL:", url);
