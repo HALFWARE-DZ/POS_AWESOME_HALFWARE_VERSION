@@ -151,7 +151,10 @@ def _fetch_item_meta(item_codes: Tuple[str, ...]):
         return []
     return frappe.get_all(
         "Item",
-        fields=["name", "item_name", "has_batch_no", "has_serial_no", "stock_uom", "allow_negative_stock"],
+        fields=[
+            "name", "item_name", "has_batch_no", "has_serial_no", "stock_uom", "allow_negative_stock",
+            "last_purchase_rate"
+        ],
         filters={"name": ["in", item_codes]},
     )
 
@@ -426,6 +429,8 @@ def merge_item_row(
             "price_list_currency": price_list_currency,
             "plc_conversion_rate": exchange_rate,
             "conversion_rate": exchange_rate,
+            # Add buying price fields for offers
+            "last_purchase_rate": meta.get("last_purchase_rate"),
         }
     )
     if not row.get("item_name") and meta.get("item_name"):

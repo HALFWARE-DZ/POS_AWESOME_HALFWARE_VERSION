@@ -370,10 +370,11 @@ export default {
 			}
 
 			if (needGroup && !item.posa_is_offer && item.item_group) {
-				let bucket = context.itemGroupBuckets.get(item.item_group);
+				const normalizedGroup = this.normalizeString(item.item_group);
+				let bucket = context.itemGroupBuckets.get(normalizedGroup);
 				if (!bucket) {
 					bucket = { items: [], qty: 0, amount: 0 };
-					context.itemGroupBuckets.set(item.item_group, bucket);
+					context.itemGroupBuckets.set(normalizedGroup, bucket);
 				}
 				bucket.items.push(item);
 				bucket.qty += qty;
@@ -454,6 +455,13 @@ export default {
 			return null;
 		}
 
+		console.log("DEBUG: evaluateOffer called", {
+			offer_name: offer.name,
+			offer_apply_on: offer.apply_on,
+			offer_discount_type: offer.discount_type,
+			offer_buying_price: offer.buying_price
+		});
+
 		if (offer.apply_on === "Item Code") {
 			return this.getItemOffer({ ...offer }, context);
 		}
@@ -470,6 +478,7 @@ export default {
 			return this.getCollectionOffer({ ...offer }, context);
 		}
 		if (offer.apply_on === "Template") {
+			console.log("DEBUG: Calling getTemplateOffer for Template offer");
 			return this.getTemplateOffer({ ...offer }, context);
 		}
 		if (offer.apply_on === "Transaction") {
@@ -602,7 +611,15 @@ export default {
 			if (!item || item.posa_is_offer) {
 				return;
 			}
-			if (
+			// For Buying Price: only check eligibility here, actual price change happens in ApplyOnPrice
+			if (offer.offer === "Item Price" && offer.discount_type === "Buying Price") {
+				const item_buying_price = item.buying_price || item.purchase_price || item.cost_price || item.valuation_rate || item.actual_cost_rate || 0;
+				if (!item_buying_price) {
+					return;
+				}
+				// cache resolved buying price so ApplyOnPrice doesn't need to re-resolve
+				item._resolved_buying_price = item_buying_price;
+			} else if (
 				offer.offer === "Item Price" &&
 				item.posa_offer_applied &&
 				!this.checkOfferIsAppley(item, offer)
@@ -638,7 +655,8 @@ export default {
 			return null;
 		}
 
-		const bucket = context.itemGroupBuckets ? context.itemGroupBuckets.get(offer.item_group) : null;
+		const normalizedGroup = this.normalizeString(offer.item_group);
+		const bucket = context.itemGroupBuckets ? context.itemGroupBuckets.get(normalizedGroup) : null;
 		if (!bucket) {
 			return null;
 		}
@@ -651,7 +669,15 @@ export default {
 			if (!item || item.posa_is_offer) {
 				return;
 			}
-			if (
+			// For Buying Price: only check eligibility here, actual price change happens in ApplyOnPrice
+			if (offer.offer === "Item Price" && offer.discount_type === "Buying Price") {
+				const item_buying_price = item.buying_price || item.purchase_price || item.cost_price || item.valuation_rate || item.actual_cost_rate || 0;
+				if (!item_buying_price) {
+					return;
+				}
+				// cache resolved buying price so ApplyOnPrice doesn't need to re-resolve
+				item._resolved_buying_price = item_buying_price;
+			} else if (
 				offer.offer === "Item Price" &&
 				item.posa_offer_applied &&
 				!this.checkOfferIsAppley(item, offer)
@@ -705,7 +731,15 @@ export default {
 			if (!item || item.posa_is_offer) {
 				return;
 			}
-			if (
+			// For Buying Price: only check eligibility here, actual price change happens in ApplyOnPrice
+			if (offer.offer === "Item Price" && offer.discount_type === "Buying Price") {
+				const item_buying_price = item.buying_price || item.purchase_price || item.cost_price || item.valuation_rate || item.actual_cost_rate || 0;
+				if (!item_buying_price) {
+					return;
+				}
+				// cache resolved buying price so ApplyOnPrice doesn't need to re-resolve
+				item._resolved_buying_price = item_buying_price;
+			} else if (
 				offer.offer === "Item Price" &&
 				item.posa_offer_applied &&
 				!this.checkOfferIsAppley(item, offer)
@@ -759,7 +793,37 @@ export default {
 			if (!item || item.posa_is_offer) {
 				return;
 			}
-			if (
+			// For Buying Price: only check eligibility here, actual price change happens in ApplyOnPrice
+			if (offer.offer === "Item Price" && offer.discount_type === "Buying Price") {
+				console.log("DEBUG: getFamilyOffer - Buying Price eligibility check", {
+					item_code: item.item_code,
+					valuation_rate: item.valuation_rate,
+					item_buying_price: item.buying_price,
+					item_purchase_price: item.purchase_price,
+					item_cost_price: item.cost_price,
+					item_actual_cost_rate: item.actual_cost_rate,
+					last_purchase_rate: item.last_purchase_rate,
+					all_item_fields: Object.keys(item),
+					rate: item.rate,
+					base_rate: item.base_rate,
+					price_list_rate: item.price_list_rate,
+					formatted_price: item.formatted_price,
+					projected_qty: item.projected_qty
+				});
+				
+				const item_buying_price = item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || 0;
+				console.log("DEBUG: getFamilyOffer - resolved buying price", {
+					resolved_buying_price: item_buying_price
+				});
+				
+				if (!item_buying_price) {
+					console.log("DEBUG: getFamilyOffer - no buying price found, skipping item");
+					return;
+				}
+				// cache resolved buying price so ApplyOnPrice doesn't need to re-resolve
+				item._resolved_buying_price = item_buying_price;
+				console.log("DEBUG: getFamilyOffer - cached resolved price", item._resolved_buying_price);
+			} else if (
 				offer.offer === "Item Price" &&
 				item.posa_offer_applied &&
 				!this.checkOfferIsAppley(item, offer)
@@ -813,7 +877,27 @@ export default {
 			if (!item || item.posa_is_offer) {
 				return;
 			}
-			if (
+			// For Buying Price: only check eligibility here, actual price change happens in ApplyOnPrice
+			if (offer.offer === "Item Price" && offer.discount_type === "Buying Price") {
+				console.log("DEBUG: getCollectionOffer - Buying Price eligibility check", {
+					item_code: item.item_code,
+					last_purchase_rate: item.last_purchase_rate,
+					valuation_rate: item.valuation_rate
+				});
+				
+				const item_buying_price = item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || 0;
+				console.log("DEBUG: getCollectionOffer - resolved buying price", {
+					resolved_buying_price: item_buying_price
+				});
+				
+				if (!item_buying_price) {
+					console.log("DEBUG: getCollectionOffer - no buying price found, skipping item");
+					return;
+				}
+				// cache resolved buying price so ApplyOnPrice doesn't need to re-resolve
+				item._resolved_buying_price = item_buying_price;
+				console.log("DEBUG: getCollectionOffer - cached resolved price", item._resolved_buying_price);
+			} else if (
 				offer.offer === "Item Price" &&
 				item.posa_offer_applied &&
 				!this.checkOfferIsAppley(item, offer)
@@ -841,23 +925,46 @@ export default {
 	},
 
 	getTemplateOffer(offer, context = {}) {
+		console.log("DEBUG: getTemplateOffer called", {
+			offer_name: offer.name,
+			offer_apply_on: offer.apply_on,
+			offer_apply_rule_on_template: offer.apply_rule_on_template,
+			normalizedTemplate: this.normalizeString(offer.apply_rule_on_template)
+		});
+		
 		if (!offer || offer.apply_on !== "Template") {
+			console.log("DEBUG: getTemplateOffer - offer is not Template or is null");
 			return null;
 		}
 
 		if (!this.checkOfferCoupon(offer)) {
+			console.log("DEBUG: getTemplateOffer - coupon check failed");
 			return null;
 		}
 
 		const normalizedTemplate = this.normalizeString(offer.apply_rule_on_template);
 		if (!normalizedTemplate) {
+			console.log("DEBUG: getTemplateOffer - no template rule");
 			return null;
 		}
 
+		console.log("DEBUG: getTemplateOffer - looking for bucket", {
+			templateBucketsAvailable: !!context.templateBuckets,
+			normalizedTemplate,
+			availableBuckets: context.templateBuckets ? Array.from(context.templateBuckets.keys()) : []
+		});
+
 		const bucket = context.templateBuckets ? context.templateBuckets.get(normalizedTemplate) : null;
 		if (!bucket) {
+			console.log("DEBUG: getTemplateOffer - no bucket found for template", normalizedTemplate);
 			return null;
 		}
+
+		console.log("DEBUG: getTemplateOffer - bucket found", {
+			bucketItems: bucket.items.length,
+			bucketQty: bucket.qty,
+			bucketAmount: bucket.amount
+		});
 
 		const items = [];
 		let totalQty = 0;
@@ -867,7 +974,27 @@ export default {
 			if (!item || item.posa_is_offer) {
 				return;
 			}
-			if (
+			// For Buying Price: only check eligibility here, actual price change happens in ApplyOnPrice
+			if (offer.offer === "Item Price" && offer.discount_type === "Buying Price") {
+				console.log("DEBUG: getTemplateOffer - Buying Price eligibility check", {
+					item_code: item.item_code,
+					last_purchase_rate: item.last_purchase_rate,
+					valuation_rate: item.valuation_rate
+				});
+				
+				const item_buying_price = item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || 0;
+				console.log("DEBUG: getTemplateOffer - resolved buying price", {
+					resolved_buying_price: item_buying_price
+				});
+				
+				if (!item_buying_price) {
+					console.log("DEBUG: getTemplateOffer - no buying price found, skipping item");
+					return;
+				}
+				// cache resolved buying price so ApplyOnPrice doesn't need to re-resolve
+				item._resolved_buying_price = item_buying_price;
+				console.log("DEBUG: getTemplateOffer - cached resolved price", item._resolved_buying_price);
+			} else if (
 				offer.offer === "Item Price" &&
 				item.posa_offer_applied &&
 				!this.checkOfferIsAppley(item, offer)
@@ -1373,6 +1500,59 @@ export default {
 				new_item.discount_amount = base_discount;
 				new_item.rate = new_item.base_rate;
 			}
+		} else if (offer.discount_type === "Buying Price") {
+			// Calculate selling price based on buying price + offer buying_price
+			console.log("DEBUG: Give Product Buying Price offer", {
+				offer: offer,
+				item: item,
+				item_fields: Object.keys(item)
+			});
+			
+			const base_price = item.base_rate || item.rate / this.exchange_rate;
+			// Try different possible field names for buying price
+			const item_buying_price = item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || 0; // Get item's buying price
+			
+			console.log("DEBUG: Give Product - Item buying price found", item_buying_price);
+			
+			if (!item_buying_price) {
+				console.log("DEBUG: Give Product - No buying price found, using original rate");
+				// If no buying price available, fallback to original rate
+				const baseCurrency = this.price_list_currency || this.pos_profile.currency;
+				if (this.selected_currency !== baseCurrency) {
+					new_item.base_rate = base_price;
+					new_item.rate = item.rate;
+				} else {
+					new_item.base_rate = base_price;
+					new_item.rate = base_price;
+				}
+			} else {
+				// Calculate new selling price: buying_price + offer.buying_price
+				const new_selling_price_base = item_buying_price + (offer.buying_price || 0);
+				const base_discount = base_price - new_selling_price_base;
+				
+				console.log("DEBUG: Give Product - Buying Price calculation", {
+					base_price,
+					item_buying_price,
+					offer_buying_price: offer.buying_price,
+					new_selling_price_base,
+					base_discount
+				});
+				
+				new_item.base_discount_amount = base_discount;
+				new_item.base_rate = new_selling_price_base;
+
+				const baseCurrency = this.price_list_currency || this.pos_profile.currency;
+				if (this.selected_currency !== baseCurrency) {
+					new_item.discount_amount = this.flt(
+						base_discount * this.exchange_rate,
+						this.currency_precision,
+					);
+					new_item.rate = this.flt(new_selling_price_base * this.exchange_rate, this.currency_precision);
+				} else {
+					new_item.discount_amount = base_discount;
+					new_item.rate = new_selling_price_base;
+				}
+			}
 		} else {
 			// Use item's original rate
 			const baseCurrency = this.price_list_currency || this.pos_profile.currency;
@@ -1414,7 +1594,8 @@ export default {
 		new_item.posa_offer_applied =
 			offer.discount_type === "Rate" ||
 			offer.discount_type === "Discount Amount" ||
-			offer.discount_type === "Discount Percentage"
+			offer.discount_type === "Discount Percentage" ||
+			offer.discount_type === "Buying Price"
 				? 1
 				: 0;
 		new_item.posa_is_offer = 1;
@@ -1425,7 +1606,8 @@ export default {
 		// Handle free items
 		const is_free =
 			(offer.discount_type === "Rate" && !offer.rate) ||
-			(offer.discount_type === "Discount Percentage" && offer.discount_percentage == 100);
+			(offer.discount_type === "Discount Percentage" && offer.discount_percentage == 100) ||
+			(offer.discount_type === "Buying Price" && (!offer.buying_price || offer.buying_price == 0));
 
 		new_item.is_free_item = is_free ? 1 : 0;
 
@@ -1580,6 +1762,63 @@ export default {
 							item.price_list_rate = base_price;
 							item.discount_amount = base_discount;
 						}
+					} else if (offer.discount_type === "Buying Price") {
+						console.log("DEBUG: ApplyOnPrice - Buying Price section reached", {
+							item_code: item.item_code,
+							valuation_rate: item.valuation_rate,
+							cached_buying_price: item._resolved_buying_price,
+							item_buying_price: item.buying_price,
+							last_purchase_rate: item.last_purchase_rate,
+							offer_buying_price: offer.buying_price
+						});
+						
+						// Apply buying price logic to existing item
+						const item_buying_price = item._resolved_buying_price || item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || 0;
+						
+						console.log("DEBUG: ApplyOnPrice - resolved buying price", {
+							resolved_buying_price: item_buying_price
+						});
+						
+						if (!item_buying_price) {
+							// If no buying price, skip offer
+							console.log("DEBUG: ApplyOnPrice - no buying price, skipping offer");
+							return;
+						}
+						
+						const base_price = this.flt(
+							(item.original_base_price_list_rate ??
+								item.base_price_list_rate / conversion_factor) * conversion_factor,
+							this.currency_precision,
+						);
+						const new_selling_price_base = item_buying_price + (offer.buying_price || 0);
+						const base_discount = base_price - new_selling_price_base;
+						
+						item.base_discount_amount = base_discount;
+						item.base_rate = new_selling_price_base;
+						item.base_price_list_rate = base_price;
+
+						// Convert to selected currency if needed
+						const baseCurrency = this.price_list_currency || this.pos_profile.currency;
+						if (this.selected_currency !== baseCurrency) {
+							item.rate = this.flt(
+								new_selling_price_base * this.exchange_rate,
+								this.currency_precision,
+							);
+							item.price_list_rate = this.flt(
+								base_price * this.exchange_rate,
+								this.currency_precision,
+							);
+							item.discount_amount = this.flt(
+								base_discount * this.exchange_rate,
+								this.currency_precision,
+							);
+						} else {
+							item.rate = new_selling_price_base;
+							item.price_list_rate = base_price;
+							item.discount_amount = base_discount;
+						}
+						// add this line:
+						item.discount_percentage = base_price ? this.flt((base_discount / base_price) * 100, this.currency_precision) : 0;
 					}
 
 					// Calculate final amounts
@@ -1900,19 +2139,69 @@ export default {
 
 	async applyItemPriceOffer(offer, item) {
 		// Apply discount based on offer type
-		if (offer.discount_type === "Percentage") {
-			item.discount_percentage = offer.discount_percentage || 0;
-		} else if (offer.discount_type === "Amount") {
-			item.discount_amount = offer.discount_amount || 0;
-		} else if (offer.discount_type === "Rate") {
-			item.rate = offer.rate || item.rate;
-		}
+		console.log("DEBUG: applyItemPriceOffer called", {
+			offer_discount_type: offer.discount_type,
+			offer_discount_type_trimmed: `"${offer.discount_type}"`.trim(),
+			comparison_with_percentage: offer.discount_type === "Percentage",
+			comparison_with_amount: offer.discount_type === "Amount", 
+			comparison_with_rate: offer.discount_type === "Rate",
+			comparison_with_buying_price: offer.discount_type === "Buying Price"
+		});
 
-		// Add offer to item's offer list
-		const itemOffers = item.posa_offers ? JSON.parse(item.posa_offers) : [];
-		if (!itemOffers.includes(offer.name)) {
-			itemOffers.push(offer.name);
-			item.posa_offers = JSON.stringify(itemOffers);
+		try {
+			const itemOffers = item.posa_offers ? JSON.parse(item.posa_offers) : [];
+			if (!itemOffers.includes(offer.name)) {
+				itemOffers.push(offer.name);
+				item.posa_offers = JSON.stringify(itemOffers);
+			}
+
+			// Apply the actual discount based on discount type
+			if (offer.discount_type === "Buying Price") {
+				console.log("DEBUG: applyItemPriceOffer - Applying Buying Price discount", {
+					offer: offer,
+					item: item,
+					item_fields: Object.keys(item)
+				});
+				
+				// Try different possible field names for buying price
+				const item_buying_price = item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || 0;
+				
+				console.log("DEBUG: applyItemPriceOffer - Item buying price found", item_buying_price);
+				
+				if (!item_buying_price) {
+					console.log("DEBUG: applyItemPriceOffer - No buying price found, skipping offer");
+					return;
+				}
+				
+				const base_price = item.base_rate || item.rate / this.exchange_rate;
+				const new_selling_price_base = item_buying_price + (offer.buying_price || 0);
+				const base_discount = base_price - new_selling_price_base;
+				
+				console.log("DEBUG: applyItemPriceOffer - Buying Price calculation", {
+					base_price,
+					item_buying_price,
+					offer_buying_price: offer.buying_price,
+					new_selling_price_base,
+					base_discount
+				});
+				
+				// Apply the discount to the item
+				if (base_discount > 0) {
+					item.discount_amount = base_discount;
+					item.base_rate = new_selling_price_base;
+					item.rate = this.selected_currency !== this.pos_profile.currency 
+						? new_selling_price_base * this.exchange_rate 
+						: new_selling_price_base;
+					item.posa_is_offer = 1;
+					
+					console.log("DEBUG: applyItemPriceOffer - Discount applied", {
+						new_rate: item.rate,
+						discount_amount: item.discount_amount
+					});
+				}
+			}
+		} catch (error) {
+			console.error("Error applying offer to item:", error);
 		}
 	},
 
