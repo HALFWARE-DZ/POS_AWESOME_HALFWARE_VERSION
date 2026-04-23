@@ -18,7 +18,7 @@
 					<v-col cols="12" md="3">
 						<v-text-field
 							v-model="filters.from_date"
-							label="From Date"
+							label="Date de début"
 							type="date"
 							variant="outlined"
 							density="compact"
@@ -29,7 +29,7 @@
 					<v-col cols="12" md="3">
 						<v-text-field
 							v-model="filters.to_date"
-							label="To Date"
+							label="Date de fin"
 							type="date"
 							variant="outlined"
 							density="compact"
@@ -40,23 +40,25 @@
 					<v-col cols="12" md="3">
 						<v-text-field
 							v-model="filters.customer"
-							label="Customer"
+							label="Client"
 							variant="outlined"
 							density="compact"
 							hide-details
 							clearable
 							@keyup.enter="loadInvoices"
+							@input="debouncedSearch"
 						></v-text-field>
 					</v-col>
 					<v-col cols="12" md="3">
 						<v-text-field
 							v-model="filters.invoice_name"
-							label="Invoice #"
+							label="Facture #"
 							variant="outlined"
 							density="compact"
 							hide-details
 							clearable
 							@keyup.enter="loadInvoices"
+							@input="debouncedSearch"
 						></v-text-field>
 					</v-col>
 				</v-row>
@@ -64,12 +66,13 @@
 					<v-col cols="12" md="3">
 						<v-text-field
 							v-model="filters.barcode"
-							label="Barcode"
+							label="Code à barres"
 							variant="outlined"
 							density="compact"
 							hide-details
 							clearable
 							@keyup.enter="loadInvoices"
+							@input="debouncedSearch"
 							prefix="mdi-barcode"
 						></v-text-field>
 					</v-col>
@@ -77,7 +80,7 @@
 						<v-select
 							v-model="filters.status"
 							:items="statusOptions"
-							label="Status"
+							label="Statut"
 							variant="outlined"
 							density="compact"
 							hide-details
@@ -95,7 +98,7 @@
 							:loading="loading"
 						>
 							<v-icon left>mdi-magnify</v-icon>
-							Search
+							Rechercher
 						</v-btn>
 					</v-col>
 					<v-col cols="12" md="3">
@@ -107,7 +110,7 @@
 							class="mt-1"
 						>
 							<v-icon left>mdi-refresh</v-icon>
-							Clear Filters
+							Effacer les filtres
 						</v-btn>
 					</v-col>
 				</v-row>
@@ -117,11 +120,11 @@
 			<v-tabs v-model="activeTab" class="mb-4">
 				<v-tab value="invoices">
 					<v-icon left>mdi-receipt</v-icon>
-					Sales Invoices
+					Factures de vente
 				</v-tab>
 				<v-tab value="payments">
 					<v-icon left>mdi-cash-minus</v-icon>
-					Payment Entries
+					Paiements
 				</v-tab>
 			</v-tabs>
 
@@ -189,8 +192,8 @@
 						<v-empty-state
 							v-else-if="!loading"
 							icon="mdi-receipt-text-outline"
-							title="No invoices found"
-							text="Try adjusting your filters"
+							title="Aucune facture trouvée"
+							text="Essayez d'ajuster vos filtres"
 							class="my-8"
 						></v-empty-state>
 					</div>
@@ -202,15 +205,15 @@
 					<v-tabs v-model="activePaymentTab" class="mb-2">
 						<v-tab value="all">
 							<v-icon left size="small">mdi-swap-horizontal</v-icon>
-							All Payments
+							Tous les paiements
 						</v-tab>
 						<v-tab value="incoming">
 							<v-icon left size="small">mdi-cash-plus</v-icon>
-							Incoming
+							Entrants
 						</v-tab>
 						<v-tab value="outgoing">
 							<v-icon left size="small">mdi-cash-minus</v-icon>
-							Outgoing
+							Sortants
 						</v-tab>
 					</v-tabs>
 
@@ -273,8 +276,8 @@
 								<v-empty-state
 									v-else-if="!loading"
 									icon="mdi-swap-horizontal"
-									title="No payment entries found"
-									text="No payment entries recorded for this shift"
+									title="Aucune écriture de paiement trouvée"
+									text="Aucune écriture de paiement enregistrée pour cette période"
 									class="my-8"
 								></v-empty-state>
 							</div>
@@ -336,8 +339,8 @@
 								<v-empty-state
 									v-else-if="!loading"
 									icon="mdi-cash-plus"
-									title="No incoming payments found"
-									text="No money received for this shift"
+									title="Aucun paiement entrant trouvé"
+									text="Aucun argent reçu pour cette période"
 									class="my-8"
 								></v-empty-state>
 							</div>
@@ -399,8 +402,8 @@
 								<v-empty-state
 									v-else-if="!loading"
 									icon="mdi-cash-minus"
-									title="No outgoing payments found"
-									text="No expenses recorded for this shift"
+									title="Aucun paiement sortant trouvé"
+									text="Aucune dépense enregistrée pour cette période"
 									class="my-8"
 								></v-empty-state>
 							</div>
@@ -417,19 +420,19 @@
 						<v-row dense align="center" v-if="activeTab === 'invoices'">
 							<v-col cols="12" md="4">
 								<div class="summary-item">
-									<span class="summary-label">Total Invoices:</span>
+									<span class="summary-label">Total des factures:</span>
 									<span class="summary-value font-weight-bold">{{ invoices.length }}</span>
 								</div>
 							</v-col>
 							<v-col cols="12" md="4">
 								<div class="summary-item">
-									<span class="summary-label">Grand Total:</span>
+									<span class="summary-label">Total général:</span>
 									<span class="summary-value font-weight-bold primary--text">{{ formatCurrency(calculateGrandTotal()) }}</span>
 								</div>
 							</v-col>
 							<v-col cols="12" md="4">
 								<div class="summary-item">
-									<span class="summary-label">Outstanding:</span>
+									<span class="summary-label">Impayé:</span>
 									<span class="summary-value font-weight-bold" :class="calculateOutstandingTotal() > 0 ? 'error--text' : 'success--text'">
 										{{ formatCurrency(calculateOutstandingTotal()) }}
 									</span>
@@ -441,19 +444,19 @@
 						<v-row dense align="center" v-if="activeTab === 'payments'">
 							<v-col cols="12" md="3">
 								<div class="summary-item">
-									<span class="summary-label">Incoming:</span>
+									<span class="summary-label">Paiements entrants:</span>
 									<span class="summary-value font-weight-bold text-success">{{ incomingPayments.length }}</span>
 								</div>
 							</v-col>
 							<v-col cols="12" md="3">
 								<div class="summary-item">
-									<span class="summary-label">Outgoing:</span>
+									<span class="summary-label">Paiements sortants:</span>
 									<span class="summary-value font-weight-bold text-error">{{ outgoingPayments.length }}</span>
 								</div>
 							</v-col>
 							<v-col cols="12" md="3">
 								<div class="summary-item">
-									<span class="summary-label">Net Flow:</span>
+									<span class="summary-label">Flux net:</span>
 									<span class="summary-value font-weight-bold" :class="calculateNetPaymentFlow() >= 0 ? 'text-success' : 'text-error'">
 										{{ calculateNetPaymentFlow() >= 0 ? '+' : '' }}{{ formatCurrency(calculateNetPaymentFlow()) }}
 									</span>
@@ -461,7 +464,7 @@
 							</v-col>
 							<v-col cols="12" md="3">
 								<div class="summary-item">
-									<span class="summary-label">Total Amount:</span>
+									<span class="summary-label">Montant total:</span>
 									<span class="summary-value font-weight-bold text-primary">{{ formatCurrency(calculateTotalPaymentsIn() + calculateTotalPaymentsOut()) }}</span>
 								</div>
 							</v-col>
@@ -475,7 +478,7 @@
 			<v-card class="invoice-details-dialog">
 				<v-card-title class="d-flex align-center pa-4">
 					<v-icon class="mr-2" color="primary">mdi-receipt-text</v-icon>
-					<span class="text-h6">Invoice Details</span>
+					<span class="text-h6">Détails de la facture</span>
 					<v-spacer></v-spacer>
 					<v-btn
 						icon="mdi-close"
@@ -492,11 +495,11 @@
 							<div class="detail-section">
 								<div class="section-header">
 									<v-icon size="small" class="mr-1" color="primary">mdi-receipt</v-icon>
-									<span class="section-title">Basic Information</span>
+									<span class="section-title">Informations de base</span>
 								</div>
 								<div class="section-content">
 									<div class="detail-row">
-										<span class="detail-label">Invoice #:</span>
+										<span class="detail-label">Facture #:</span>
 										<span class="detail-value font-weight-medium">{{ selectedInvoice.name }}</span>
 									</div>
 									<div class="detail-row">
@@ -504,7 +507,7 @@
 										<span class="detail-value">{{ formatDate(selectedInvoice.posting_date) }}</span>
 									</div>
 									<div class="detail-row">
-										<span class="detail-label">Status:</span>
+										<span class="detail-label">Statut:</span>
 										<v-chip
 											:size="x-small"
 											:color="getStatusColor(selectedInvoice.status)"
@@ -521,15 +524,15 @@
 							<div class="detail-section">
 								<div class="section-header">
 									<v-icon size="small" class="mr-1" color="primary">mdi-account</v-icon>
-									<span class="section-title">Customer Information</span>
+									<span class="section-title">Informations client</span>
 								</div>
 								<div class="section-content">
 									<div class="detail-row">
-										<span class="detail-label">Customer:</span>
+										<span class="detail-label">Client:</span>
 										<span class="detail-value font-weight-medium">{{ selectedInvoice.customer }}</span>
 									</div>
 									<div v-if="selectedInvoice.custom_barcode" class="detail-row">
-										<span class="detail-label">Barcode:</span>
+										<span class="detail-label">Code à barres:</span>
 										<div class="d-flex align-center">
 											<v-icon size="small" class="mr-1" color="grey">mdi-barcode</v-icon>
 											<span class="detail-value font-weight-medium">{{ selectedInvoice.custom_barcode }}</span>
@@ -543,23 +546,23 @@
 							<div class="detail-section">
 								<div class="section-header">
 									<v-icon size="small" class="mr-1" color="primary">mdi-currency</v-icon>
-									<span class="section-title">Financial Information</span>
+									<span class="section-title">Informations financières</span>
 								</div>
 								<div class="section-content">
 									<div class="detail-row">
-										<span class="detail-label">Total Amount:</span>
+										<span class="detail-label">Montant total:</span>
 										<span class="detail-value font-weight-bold primary--text text-h6">
 											{{ formatCurrency(selectedInvoice.grand_total) }}
 										</span>
 									</div>
 									<div v-if="selectedInvoice.outstanding_amount" class="detail-row">
-										<span class="detail-label">Outstanding:</span>
+										<span class="detail-label">Montant impayé:</span>
 										<span class="detail-value font-weight-medium" :class="selectedInvoice.outstanding_amount > 0 ? 'error--text' : 'success--text'">
 											{{ formatCurrency(selectedInvoice.outstanding_amount) }}
 										</span>
 									</div>
 									<div class="detail-row">
-										<span class="detail-label">Currency:</span>
+										<span class="detail-label">Devise:</span>
 										<span class="detail-value">{{ selectedInvoice.currency || 'DZD' }}</span>
 									</div>
 								</div>
@@ -570,23 +573,25 @@
 							<div class="detail-section">
 								<div class="section-header">
 									<v-icon size="small" class="mr-1" color="primary">mdi-cart</v-icon>
-									<span class="section-title">Sold Items</span>
+									<span class="section-title">Détails de la facture</span>
 								</div>
 								<div class="section-content">
 									<!-- Loading -->
 									<div v-if="currentItemsLoading" class="text-center py-4">
 										<v-progress-circular indeterminate color="primary" size="28"></v-progress-circular>
-										<div class="mt-2 text-caption" style="color:#888;">Loading items...</div>
+										<div class="mt-2 text-caption" style="color:#888;">Chargement des articles...</div>
+										<div class="mt-2 text-caption" style="color:#888;">Chargement des articles...</div>
 									</div>
 									<!-- Items table -->
 									<table v-else-if="currentItemsReady" style="width:100%; border-collapse:collapse;">
 										<thead>
 											<tr>
-												<th style="text-align:left; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Item</th>
-												<th style="text-align:center; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Qty</th>
-												<th style="text-align:right; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Price</th>
-												<th style="text-align:right; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Discount</th>
-												<th style="text-align:right; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Total</th>
+												<th style="text-align:left; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Article</th>
+												<th style="text-align:center; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Qté</th>
+												<th style="text-align:right; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Prix</th>
+												<th style="text-align:right; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Remise</th>
+												<th style="text-align:right; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Remise distribuée</th>
+												<th style="text-align:right; padding:8px 10px; background:#f5f5f5; border-bottom:2px solid #ddd; font-size:0.8rem; color:#555;">Montant net</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -595,10 +600,10 @@
 													<div style="font-weight:500; color:#333; font-size:0.875rem;">{{ parseVariantInfo(item.item_name, item.item_code).baseName }}</div>
 													<div style="font-size:0.72rem; color:#666; margin-top:2px;">
 														<span v-if="parseVariantInfo(item.item_name, item.item_code).color" style="margin-right:8px;">
-															<strong>Color:</strong> {{ parseVariantInfo(item.item_name, item.item_code).color }}
+															<strong>Couleur:</strong> {{ parseVariantInfo(item.item_name, item.item_code).color }}
 														</span>
 														<span v-if="parseVariantInfo(item.item_name, item.item_code).size">
-															<strong>Size:</strong> {{ parseVariantInfo(item.item_name, item.item_code).size }}
+															<strong>Taille:</strong> {{ parseVariantInfo(item.item_name, item.item_code).size }}
 														</span>
 													</div>
 													<div style="font-size:0.72rem; color:#999; margin-top:2px;">{{ item.item_code || item.name || '' }}</div>
@@ -610,12 +615,16 @@
 													<span v-else-if="(item.discount_percentage || 0) > 0" style="color:#e53935;">{{ item.discount_percentage }}%</span>
 													<span v-else style="color:#bbb;">—</span>
 												</td>
-												<td style="padding:8px 10px; text-align:right; font-weight:600; font-size:0.875rem;">{{ formatCurrency(item.amount || item.total || 0) }}</td>
+												<td style="padding:8px 10px; text-align:right; font-size:0.875rem;">
+													<span v-if="(item.distributed_discount_amount || 0) > 0" style="color:#ff6b35;">-{{ formatCurrency(item.distributed_discount_amount) }}</span>
+													<span v-else style="color:#bbb;">—</span>
+												</td>
+												<td style="padding:8px 10px; text-align:right; font-weight:600; font-size:0.875rem; color:#2e7d32;">{{ formatCurrency(item.net_amount || 0) }}</td>
 											</tr>
 										</tbody>
 										<tfoot>
 											<tr style="border-top:2px solid #ddd; background:#fafafa;">
-												<td colspan="4" style="padding:10px; text-align:right; font-weight:600; color:#555; font-size:0.875rem;">Grand Total:</td>
+												<td colspan="5" style="padding:10px; text-align:right; font-weight:600; color:#555; font-size:0.875rem;">Total général:</td>
 												<td style="padding:10px; text-align:right; font-weight:700; color:#009688; font-size:1rem;">{{ formatCurrency(selectedInvoice.grand_total) }}</td>
 											</tr>
 										</tfoot>
@@ -623,7 +632,7 @@
 									<!-- Empty -->
 									<div v-else class="text-center py-4" style="color:#aaa;">
 										<v-icon size="large" color="grey">mdi-cart-off</v-icon>
-										<div class="mt-2">No items found for this invoice</div>
+										<div class="mt-2">Aucun article trouvé pour cette facture</div>
 									</div>
 								</div>
 							</div>
@@ -641,7 +650,7 @@
 						class="action-btn"
 					>
 						<v-icon left>mdi-printer</v-icon>
-						Print Invoice
+						Imprimer la facture
 					</v-btn>
 					<v-spacer></v-spacer>
 					<!-- <v-btn
@@ -946,32 +955,73 @@ export default {
 			try {
 				const filters = this.buildFilters();
 				
-				// Get current POS profile and shift info
-				const posData = this.getCurrentPosData();
-				if (posData.pos_profile) {
-					filters.push(['pos_profile', '=', posData.pos_profile]);
-				}
-				if (posData.pos_opening_shift) {
-					filters.push(['posa_pos_opening_shift', '=', posData.pos_opening_shift]);
-				}
+				// Removed POS profile and opening shift filters to show all invoices
+				// const posData = this.getCurrentPosData();
+				// if (posData.pos_profile) {
+				// 	filters.push(['pos_profile', '=', posData.pos_profile]);
+				// }
+				// if (posData.pos_opening_shift) {
+				// 	filters.push(['posa_pos_opening_shift', '=', posData.pos_opening_shift]);
+				// }
 				
-				// Search for Sales Invoices with custom_is_reserve filter
-				const result = await frappe.call({
-					method: 'frappe.client.get_list',
-					args: {
-						doctype: 'Sales Invoice',
-						fields: [
-							'name', 'customer', 'posting_date', 'grand_total',
-							'status', 'remarks', 'currency', 'outstanding_amount', 'custom_barcode', 'custom_is_reserve',
-							'creation', 'modified', 'pos_profile', 'posa_pos_opening_shift'
-						],
-						filters: filters,
-						order_by: 'posting_date desc, creation desc',
-						limit_page_length: 200
-					}
-				});
+				// If searching by barcode, we need to search in invoice items too
+				let invoices = [];
+				if (this.filters.barcode) {
+					// First get invoices matching barcode in custom_barcode field
+					const result1 = await frappe.call({
+						method: 'frappe.client.get_list',
+						args: {
+							doctype: 'Sales Invoice',
+							fields: [
+								'name', 'customer', 'posting_date', 'grand_total',
+								'status', 'remarks', 'currency', 'outstanding_amount', 'custom_barcode', 'custom_is_reserve',
+								'creation', 'modified', 'pos_profile', 'posa_pos_opening_shift'
+							],
+							filters: [...filters, ['custom_barcode', 'like', `%${this.filters.barcode}%`], ['docstatus', '=', 1]],
+							order_by: 'posting_date desc, creation desc',
+							limit_page_length: 200
+						}
+					});
+					invoices = result1.message || [];
+					
+					// Get invoices that contain items with the barcode using Python function
+					const itemInvoicesResult = await frappe.call({
+						method: 'posawesome.api.get_invoices_by_item_barcode',
+						args: {
+							barcode: this.filters.barcode
+						}
+					});
+					
+					console.log('Item invoices from Python:', itemInvoicesResult.message?.length || 0);
+					
+					// Merge results and remove duplicates
+					const itemInvoices = itemInvoicesResult.message || [];
+					const allInvoices = [...invoices, ...itemInvoices];
+					const uniqueInvoices = allInvoices.filter((invoice, index, self) => 
+						index === self.findIndex((inv) => inv.name === invoice.name)
+					);
+					invoices = uniqueInvoices;
+					console.log('Final merged invoices count:', invoices.length);
+				} else {
+					// Normal search without barcode
+					const result = await frappe.call({
+						method: 'frappe.client.get_list',
+						args: {
+							doctype: 'Sales Invoice',
+							fields: [
+								'name', 'customer', 'posting_date', 'grand_total',
+								'status', 'remarks', 'currency', 'outstanding_amount', 'custom_barcode', 'custom_is_reserve',
+								'creation', 'modified', 'pos_profile', 'posa_pos_opening_shift'
+							],
+							filters: filters,
+							order_by: 'posting_date desc, creation desc',
+							limit_page_length: 200
+						}
+					});
+					invoices = result.message || [];
+				}
 
-				this.invoices = result.message || [];
+				this.invoices = invoices;
 				
 				// Additional client-side sorting to ensure recent items are at top
 				this.invoices.sort((a, b) => {
@@ -1232,17 +1282,15 @@ export default {
 				filters.push(['name', 'like', `%${this.filters.invoice_name}%`]);
 			}
 			
-			if (this.filters.barcode) {
-				filters.push(['custom_barcode', 'like', `%${this.filters.barcode}%`]);
-			}
+			// Barcode filter is handled separately in loadInvoices for better search functionality
 			
 			if (this.filters.status) {
 				filters.push(['status', '=', this.filters.status]);
 			}
 			
-			// Only show sales invoices (not returns)
+			// Only show sales invoices (not returns) and only submitted invoices (not drafts)
 			filters.push(['is_return', '=', 0]);
-			filters.push(['docstatus', '!=', 2]); // Not cancelled
+			filters.push(['docstatus', '=', 1]); // Only submitted invoices
 			
 			return filters;
 		},
@@ -1386,16 +1434,18 @@ export default {
 		// New method to get payment color
 		getPaymentColor(partyType, paymentType) {
 			if (paymentType === 'Receive') {
+				if (partyType === 'Customer') return 'success';
+				if (partyType === 'Employee') return 'info';
+				if (partyType === 'Supplier') return 'warning';
 				return 'success';
-			} else if (paymentType === 'Pay') {
-				return partyType === 'Employee' ? 'orange' : 'red';
+			} else {
+				if (partyType === 'Employee') return 'error';
+				if (partyType === 'Supplier') return 'warning';
+				return 'error';
 			}
-			return 'grey';
-		},
-
-
+		}
 	}
-};
+}
 </script>
 
 <style scoped>

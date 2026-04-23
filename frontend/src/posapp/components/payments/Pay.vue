@@ -32,20 +32,20 @@
 							</v-col>
 						</v-row>
 						<v-row align="center" no-gutters class="mb-1">
-							<v-col md="4" cols="12">
-								<v-select
-									density="compact"
+							<v-col md="6" cols="12">
+								<v-text-field
+									v-model="scan_invoice"
+									label="Scan Invoice"
 									variant="outlined"
+									density="compact"
 									hide-details
 									clearable
+									@keyup.enter="loadScannedInvoice"
+									@input="debouncedScanSearch"
+									prefix="mdi-barcode"
 									class="pos-themed-input"
-									v-model="pos_profile_search"
-									:items="pos_profiles_list"
-									item-value="name"
-									label="Select POS Profile"
-								></v-select>
+								></v-text-field>
 							</v-col>
-							<v-col> </v-col>
 							<v-col md="3" cols="12">
 								<v-btn block color="warning" theme="dark" @click="get_outstanding_invoices">{{
 									__("Search")
@@ -65,80 +65,22 @@
 								>
 							</v-col>
 						</v-row>
-						<!-- Currency Filter Row -->
-						<v-row class="mb-2">
-							<v-col md="4" cols="12">
-								<v-select
-									density="compact"
-									variant="outlined"
-									hide-details
-									clearable
-									v-model="currency_filter"
-									:items="['ALL', ...invoice_currencies]"
-									label="Filter by Currency"
-									class="pos-themed-input"
-								></v-select>
-							</v-col>
-							<v-col md="8" cols="12">
-								<div class="text-caption text-medium-emphasis mt-2">
-									<span
-										v-for="(data, key) in outstanding_by_currency"
-										:key="key"
-										class="mr-4"
-									>
-										<strong>
-											{{ formatCurrency(data.amount) }}
-											{{ data.symbol }}
-											{{ data.party_currency }}
-											<span v-if="data.party_currency !== data.invoice_currency">
-												({{ data.invoice_currency }})
-											</span>
-										</strong>
-									</span>
-								</div>
-							</v-col>
-						</v-row>
-
-						<v-row
-							v-if="
-								pos_profile.posa_allow_reconcile_payments &&
-								outstanding_invoices.length &&
-								customer_name
-							"
-							class="mb-2"
-						>
-							<v-col md="4" cols="12" class="pb-1">
-								<v-btn
-									block
-									color="primary"
-									theme="dark"
-									:loading="auto_reconcile_loading"
-									:disabled="auto_reconcile_loading || !unallocated_payments.length"
-									@click="autoReconcile"
-								>
-									{{ __("Auto Reconcile") }}
-								</v-btn>
-							</v-col>
-							<v-col md="8" cols="12" v-if="auto_reconcile_summary">
-								<div class="text-caption text-medium-emphasis">
-									{{ auto_reconcile_summary }}
-								</div>
-							</v-col>
-						</v-row>
-						<v-data-table
+						
+												<v-data-table
 							:headers="invoices_headers"
 							:items="filtered_outstanding_invoices"
 							item-key="voucher_no"
-							class="elevation-1 mt-0"
+							class="elevation-1 mt-0 invoice-table"
 							:loading="invoices_loading"
-							@click:row="selectSingleInvoice"
-							:item-class="isSelected"
+							@click:row="toggleInvoiceSelection"
+							:item-class="getRowClass"
 						>
 							<template v-slot:item.actions="{ item }">
 								<v-checkbox
 									:model-value="isInvoiceSelected(item)"
 									color="primary"
 									@click.stop="toggleInvoiceSelection(item)"
+									hide-details
 								>
 								</v-checkbox>
 							</template>
@@ -543,6 +485,8 @@ export default {
 			auto_reconcile_summary: "",
 			pos_profiles_list: [],
 			pos_profile_search: "",
+			scan_invoice: "",
+			scanTimeout: null,
 			payment_methods_list: [],
 			mpesa_search_name: "",
 			mpesa_search_mobile: "",
@@ -1108,6 +1052,7 @@ export default {
 			}
 			this.mpesa_search_mobile = "";
 			this.mpesa_search_name = "";
+			this.scan_invoice = "";
 			this.mpesa_payments = [];
 			this.selected_mpesa_payments = [];
 			this.outstanding_invoices = [];
@@ -1324,6 +1269,137 @@ export default {
 		},
 		isInvoiceSelected(item) {
 			return this.selected_invoices.some((i) => i.voucher_no === item.voucher_no);
+		},
+		getRowClass(item) {
+			return this.isInvoiceSelected(item) ? 'selected-invoice-row' : '';
+		},
+		loadScannedInvoice() {
+			if (this.scan_invoice) {
+				this.searchInvoiceByBarcode(this.scan_invoice);
+			}
+		},
+		debouncedScanSearch() {
+			clearTimeout(this.scanTimeout);
+			this.scanTimeout = setTimeout(() => {
+				if (this.scan_invoice) {
+					this.searchInvoiceByBarcode(this.scan_invoice);
+				}
+			}, 300);
+		},
+		async searchInvoiceByBarcode(barcode) {
+			if (!barcode) return;
+			
+			this.invoices_loading = true;
+			
+			try {
+				console.log('Searching for barcode:', barcode, '(ignoring customer filter)');
+				
+				// Method 1: Search by custom_barcode field directly (no customer filter)
+				const result1 = await frappe.call({
+					method: 'frappe.client.get_list',
+					args: {
+						doctype: 'Sales Invoice',
+						filters: [
+							['company', '=', this.company],
+							['outstanding_amount', '>', 0],
+							['docstatus', '=', 1],
+							['is_return', '=', 0],
+							['custom_barcode', 'like', `%${barcode}%`]
+						],
+						fields: [
+							'name as voucher_no',
+							'outstanding_amount',
+							'grand_total as invoice_amount',
+							'due_date',
+							'posting_date',
+							'currency',
+							'party_account_currency',
+							'pos_profile',
+							'customer',
+							'customer_name',
+							'custom_is_reserve',
+							'custom_barcode'
+						],
+						order_by: 'posting_date desc, creation desc',
+						limit_page_length: 200
+					}
+				});
+				
+				console.log('Direct barcode search result:', result1.message?.length || 0);
+				
+				// Method 2: Search by item barcodes - get all sales invoice items with this barcode
+				const itemsResult = await frappe.call({
+					method: 'frappe.client.get_list',
+					args: {
+						doctype: 'Sales Invoice Item',
+						filters: [
+							['barcode', 'like', `%${barcode}%`]
+						],
+						fields: ['parent', 'item_code', 'item_name', 'barcode'],
+						limit_page_length: 200
+					}
+				});
+				
+				const items = itemsResult.message || [];
+				console.log('Found items with barcode:', items.length);
+				
+				// Get unique invoice names from items
+				const invoiceNames = [...new Set(items.map(item => item.parent))];
+				console.log('Invoice names from items:', invoiceNames);
+				
+				let barcodeInvoices = [];
+				
+				// For each invoice, check if it's outstanding (no customer filter)
+				for (const invoiceName of invoiceNames) {
+					const invoiceCheck = await frappe.call({
+						method: 'frappe.client.get_value',
+						args: {
+							doctype: 'Sales Invoice',
+							filters: [
+								['name', '=', invoiceName],
+								['company', '=', this.company],
+								['outstanding_amount', '>', 0],
+								['docstatus', '=', 1],
+								['is_return', '=', 0]
+							],
+							fields: [
+								'name as voucher_no',
+								'outstanding_amount',
+								'grand_total as invoice_amount',
+								'due_date',
+								'posting_date',
+								'currency',
+								'party_account_currency',
+								'pos_profile',
+								'customer',
+								'customer_name',
+								'custom_is_reserve',
+								'custom_barcode'
+							]
+						}
+					});
+					
+					if (invoiceCheck.message) {
+						barcodeInvoices.push(invoiceCheck.message);
+					}
+				}
+				
+				console.log('Valid barcode invoices:', barcodeInvoices.length);
+				
+				// Merge both results and remove duplicates
+				const allInvoices = [...(result1.message || []), ...barcodeInvoices];
+				const uniqueInvoices = allInvoices.filter((invoice, index, self) =>
+					index === self.findIndex((inv) => inv.voucher_no === invoice.voucher_no)
+				);
+				
+				this.outstanding_invoices = uniqueInvoices;
+				console.log('Final scanned invoices count:', this.outstanding_invoices.length);
+				this.invoices_loading = false;
+			} catch (error) {
+				console.error('Error scanning invoice:', error);
+				this.outstanding_invoices = [];
+				this.invoices_loading = false;
+			}
 		},
 		toggleInvoiceSelection(item) {
 			if (this.isInvoiceSelected(item)) {
@@ -1723,6 +1799,22 @@ input[total_selected_mpesa_payments] {
 
 .credit-note-row {
 	background-color: rgba(76, 175, 80, 0.08) !important;
+}
+
+.selected-invoice-row {
+	background-color: #e3f2fd !important;
+	border-left: 4px solid #2196f3 !important;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.selected-invoice-row:hover {
+	background-color: #bbdefb !important;
+}
+
+.invoice-table tbody tr:hover {
+	background-color: #f5f5f5 !important;
+	cursor: pointer;
 }
 
 .totals-wrapper {

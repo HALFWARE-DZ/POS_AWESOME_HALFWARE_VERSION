@@ -27,6 +27,22 @@ input[total_selected_mpesa_payments] {
 	background-color: rgba(76, 175, 80, 0.08) !important;
 }
 
+.selected-invoice-row {
+	background-color: #e3f2fd !important;
+	border-left: 4px solid #2196f3 !important;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.selected-invoice-row:hover {
+	background-color: #bbdefb !important;
+}
+
+.invoice-table tbody tr:hover {
+	background-color: #f5f5f5 !important;
+	cursor: pointer;
+}
+
 .totals-wrapper {
     font-weight: bold;
 }
