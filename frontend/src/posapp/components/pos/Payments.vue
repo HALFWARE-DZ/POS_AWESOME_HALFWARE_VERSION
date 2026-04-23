@@ -1726,6 +1726,23 @@ export default {
 		async submit(event, payment_received = false, print = false) {
 			this.loading = true;
 			try {
+				// VALIDATION: Public customer must be fully paid - no partial payments allowed
+				if (this.customer_info.customer_name === "Public") {
+					const invoiceTotal = this.flt(
+						this.invoice_doc.rounded_total || this.invoice_doc.grand_total,
+						this.currency_precision
+					);
+					
+					if (this.total_payments < invoiceTotal) {
+						this.eventBus.emit("show_message", {
+							title: __("Le paiement intégral est obligatoire pour les clients du secteur public ; aucun paiement partiel n'est autorisé."),
+							color: "error",
+						});
+						frappe.utils.play_sound("error");
+						return;
+					}
+				}
+				
 				// For return invoices, ensure payment amounts are negative
 				if (this.invoice_doc.is_return) {
 					this.ensureReturnPaymentsAreNegative();
