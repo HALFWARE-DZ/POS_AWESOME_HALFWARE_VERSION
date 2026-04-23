@@ -238,6 +238,7 @@ export default {
 						),
 						custom_la_famille: this.normalizeString(item.custom_la_famille || ""),
 						custom_la_collection: this.normalizeString(item.custom_la_collection || ""),
+						variant_of: this.normalizeString(item.variant_of || ""),
 					}
 				: fallback
 					? {
@@ -250,6 +251,7 @@ export default {
 							),
 							custom_la_famille: this.normalizeString(fallback.custom_la_famille || ""),
 							custom_la_collection: this.normalizeString(fallback.custom_la_collection || ""),
+							variant_of: this.normalizeString(fallback.variant_of || ""),
 						}
 					: null;
 
@@ -301,6 +303,17 @@ export default {
 						return true;
 					}
 					break;
+				case "Template":
+					if (!offer.apply_rule_on_template) {
+						return true;
+					}
+					if (!meta.variant_of) {
+						return true;
+					}
+					if (meta.variant_of === this.normalizeString(offer.apply_rule_on_template)) {
+						return true;
+					}
+					break;
 				case "Transaction":
 					return true;
 				default:
@@ -319,6 +332,7 @@ export default {
 			brandBuckets: new Map(),
 			familyBuckets: new Map(),
 			collectionBuckets: new Map(),
+			templateBuckets: new Map(),
 			transactionBucket: { items: [], qty: 0, amount: 0 },
 		};
 
@@ -327,6 +341,7 @@ export default {
 		const needBrand = offers.some((offer) => offer.apply_on === "Brand");
 		const needFamily = offers.some((offer) => offer.apply_on === "Family");
 		const needCollection = offers.some((offer) => offer.apply_on === "Collection");
+		const needTemplate = offers.some((offer) => offer.apply_on === "Template");
 		const needTransaction = offers.some((offer) => offer.apply_on === "Transaction");
 
 		const brandCandidates = [];
@@ -370,10 +385,11 @@ export default {
 			}
 
 			if (needFamily && !item.posa_is_offer && item.custom_la_famille) {
-				let bucket = context.familyBuckets.get(item.custom_la_famille);
+				const normalizedFamily = this.normalizeString(item.custom_la_famille);
+				let bucket = context.familyBuckets.get(normalizedFamily);
 				if (!bucket) {
 					bucket = { items: [], qty: 0, amount: 0 };
-					context.familyBuckets.set(item.custom_la_famille, bucket);
+					context.familyBuckets.set(normalizedFamily, bucket);
 				}
 				bucket.items.push(item);
 				bucket.qty += qty;
@@ -381,10 +397,23 @@ export default {
 			}
 
 			if (needCollection && !item.posa_is_offer && item.custom_la_collection) {
-				let bucket = context.collectionBuckets.get(item.custom_la_collection);
+				const normalizedCollection = this.normalizeString(item.custom_la_collection);
+				let bucket = context.collectionBuckets.get(normalizedCollection);
 				if (!bucket) {
 					bucket = { items: [], qty: 0, amount: 0 };
-					context.collectionBuckets.set(item.custom_la_collection, bucket);
+					context.collectionBuckets.set(normalizedCollection, bucket);
+				}
+				bucket.items.push(item);
+				bucket.qty += qty;
+				bucket.amount += amount;
+			}
+
+			if (needTemplate && !item.posa_is_offer && item.variant_of) {
+				const normalizedTemplate = this.normalizeString(item.variant_of);
+				let bucket = context.templateBuckets.get(normalizedTemplate);
+				if (!bucket) {
+					bucket = { items: [], qty: 0, amount: 0 };
+					context.templateBuckets.set(normalizedTemplate, bucket);
 				}
 				bucket.items.push(item);
 				bucket.qty += qty;
@@ -439,6 +468,9 @@ export default {
 		}
 		if (offer.apply_on === "Collection") {
 			return this.getCollectionOffer({ ...offer }, context);
+		}
+		if (offer.apply_on === "Template") {
+			return this.getTemplateOffer({ ...offer }, context);
 		}
 		if (offer.apply_on === "Transaction") {
 			return this.getTransactionOffer({ ...offer }, context);
@@ -769,6 +801,60 @@ export default {
 		}
 
 		const bucket = context.collectionBuckets ? context.collectionBuckets.get(normalizedCollection) : null;
+		if (!bucket) {
+			return null;
+		}
+
+		const items = [];
+		let totalQty = 0;
+		let totalAmount = 0;
+
+		bucket.items.forEach((item) => {
+			if (!item || item.posa_is_offer) {
+				return;
+			}
+			if (
+				offer.offer === "Item Price" &&
+				item.posa_offer_applied &&
+				!this.checkOfferIsAppley(item, offer)
+			) {
+				return;
+			}
+			const qty = this._resolveOfferQty(item);
+			const rate = item.original_price_list_rate ?? item.price_list_rate ?? 0;
+			totalQty += qty;
+			totalAmount += qty * rate;
+			items.push(item.posa_row_id);
+		});
+
+		if (!totalQty && !totalAmount) {
+			return null;
+		}
+
+		const res = this.checkQtyAnountOffer(offer, totalQty, totalAmount);
+		if (!res.apply) {
+			return null;
+		}
+
+		offer.items = items;
+		return offer;
+	},
+
+	getTemplateOffer(offer, context = {}) {
+		if (!offer || offer.apply_on !== "Template") {
+			return null;
+		}
+
+		if (!this.checkOfferCoupon(offer)) {
+			return null;
+		}
+
+		const normalizedTemplate = this.normalizeString(offer.apply_rule_on_template);
+		if (!normalizedTemplate) {
+			return null;
+		}
+
+		const bucket = context.templateBuckets ? context.templateBuckets.get(normalizedTemplate) : null;
 		if (!bucket) {
 			return null;
 		}
@@ -1737,6 +1823,9 @@ export default {
 					return true;
 				}
 				if (offer.apply_on === "Collection" && newItem.custom_la_collection && this.normalizeString(newItem.custom_la_collection) === this.normalizeString(offer.apply_rule_on_collection)) {
+					return true;
+				}
+				if (offer.apply_on === "Template" && newItem.variant_of && this.normalizeString(newItem.variant_of) === this.normalizeString(offer.apply_rule_on_template)) {
 					return true;
 				}
 				return false;
