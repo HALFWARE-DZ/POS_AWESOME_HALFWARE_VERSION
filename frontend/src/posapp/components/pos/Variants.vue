@@ -98,7 +98,12 @@
 import { ensurePosProfile } from "../../../utils/pos_profile.js";
 import _ from "lodash";
 import placeholderImage from "./placeholder-image.png";
+import { useInvoiceStore } from "../../stores/invoiceStore.js";
 export default {
+	setup() {
+		const invoiceStore = useInvoiceStore();
+		return { invoiceStore };
+	},
 	data: () => ({
 		varaintsDialog: false,
 		parentItem: null,
@@ -374,7 +379,9 @@ export default {
 			console.log("add_item called", item.item_code);
 			
 			// Check if item has zero quantity and prevent adding to cart
-			if (!item.actual_qty || item.actual_qty <= 0) {
+			// Allow zero stock items for return invoices
+			const invoiceDoc = this.invoiceStore.invoiceDoc;
+			if ((!item.actual_qty || item.actual_qty <= 0) && !invoiceDoc?.is_return) {
 				console.log("Item out of stock, cannot add to cart:", item.item_code);
 				// You could show a toast or notification here if needed
 				return;

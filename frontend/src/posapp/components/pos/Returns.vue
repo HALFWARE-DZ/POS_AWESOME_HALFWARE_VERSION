@@ -3,7 +3,7 @@
 		<v-dialog v-model="invoicesDialog" max-width="800px" min-width="800px">
 			<v-card>
 				<v-card-title>
-					<span class="text-h5 text-primary">{{ __("Select Return Invoice") }}</span>
+					<span class="text-h5 text-primary">{{ __("Sélectionner Facture de Retour") }}</span>
 				</v-card-title>
 				<v-container>
 					<!-- Invoice ID and Date Range search -->
@@ -15,7 +15,7 @@
 								variant="outlined"
 								v-if="!from_date && !to_date"
 							>
-								<small>{{ __("Use date range to search for older invoices") }}</small>
+								<small>{{ __("Utiliser la plage de dates pour rechercher les anciennes factures") }}</small>
 							</v-alert>
 						</v-col>
 					</v-row>
@@ -23,7 +23,7 @@
 						<v-col cols="12" sm="6">
 							<v-text-field
 								color="primary"
-								:label="frappe._('Invoice ID')"
+								:label="frappe._('ID Facture')"
 								class="pos-themed-input"
 								hide-details
 								v-model="invoice_name"
@@ -34,7 +34,7 @@
 						<v-col cols="12" sm="6">
 							<v-text-field
 								color="primary"
-								:label="frappe._('Barcode')"
+								:label="frappe._('Code à barres')"
 								class="pos-themed-input"
 								hide-details
 								v-model="barcode"
@@ -72,7 +72,7 @@
 						<v-col cols="12" sm="6">
 							<v-text-field
 								color="primary"
-								:label="frappe._('Customer Name')"
+								:label="frappe._('Nom du Client')"
 								class="pos-themed-input"
 								hide-details
 								v-model="customer_name"
@@ -83,7 +83,7 @@
 						<v-col cols="12" sm="6">
 							<v-text-field
 								color="primary"
-								:label="frappe._('Customer ID')"
+								:label="frappe._('ID Client')"
 								class="pos-themed-input"
 								hide-details
 								v-model="customer_id"
@@ -96,7 +96,7 @@
 						<v-col cols="12" sm="6">
 							<v-text-field
 								color="primary"
-								:label="frappe._('Mobile Number')"
+								:label="frappe._('Numéro de Mobile')"
 								class="pos-themed-input"
 								hide-details
 								v-model="mobile_no"
@@ -107,7 +107,7 @@
 						<v-col cols="12" sm="6">
 							<v-text-field
 								color="primary"
-								:label="frappe._('Tax ID')"
+								:label="frappe._('ID Fiscal')"
 								class="pos-themed-input"
 								hide-details
 								v-model="tax_id"
@@ -122,7 +122,7 @@
 						<v-col cols="12" sm="6">
 							<v-text-field
 								color="primary"
-								:label="frappe._('Minimum Amount')"
+								:label="frappe._('Montant Minimum')"
 								class="pos-themed-input"
 								hide-details
 								v-model="min_amount"
@@ -136,7 +136,7 @@
 						<v-col cols="12" sm="6">
 							<v-text-field
 								color="primary"
-								:label="frappe._('Maximum Amount')"
+								:label="frappe._('Montant Maximum')"
 								class="pos-themed-input"
 								hide-details
 								v-model="max_amount"
@@ -144,7 +144,7 @@
 								clearable
 								type="number"
 								min="0"
-								placeholder="No limit"
+								placeholder="Sans limite"
 							></v-text-field>
 						</v-col>
 					</v-row>
@@ -166,11 +166,11 @@
 							@click="search_invoices"
 						>
 							<v-icon start>mdi-magnify</v-icon>
-							{{ __("Search") }}
+							{{ __("Rechercher") }}
 						</v-btn>
 						<v-btn variant="text" class="ml-2" color="warning" theme="dark" @click="clear_search">
 							<v-icon start>mdi-refresh</v-icon>
-							{{ __("Clear") }}
+							{{ __("Effacer") }}
 						</v-btn>
 						<v-btn
 							v-if="pos_profile.posa_allow_return_without_invoice == 1"
@@ -180,7 +180,7 @@
 							theme="dark"
 							@click="return_without_invoice"
 						>
-							{{ __("Return without Invoice") }}
+							{{ __("Retour d'article") }}
 						</v-btn>
 					</v-row>
 
@@ -199,7 +199,7 @@
 								:item-class="returnRowClass"
 								:footer-props="{
 									'items-per-page-options': [10, 25, 50, 100],
-									'items-per-page-text': 'Invoices per page',
+									'items-per-page-text': 'Factures par page',
 								}"
 								:items-per-page="25"
 							>
@@ -218,7 +218,7 @@
 											class="ml-2"
 											label
 										>
-											{{ __("Return window passed") }}
+											{{ __("Période de retour expirée") }}
 										</v-chip>
 									</div>
 								</template>
@@ -236,7 +236,7 @@
 									:loading="loading_more"
 									@click="load_more_invoices"
 								>
-									{{ __("Load More Invoices") }}
+									{{ __("Charger plus de factures") }}
 								</v-btn>
 							</div>
 						</v-col>
@@ -246,16 +246,16 @@
 							v-else-if="searched_once && (!dialog_data || dialog_data.length === 0)"
 						>
 							<v-alert type="warning" text>
-								{{ __("No invoices found. Try different search criteria.") }}
+								{{ __("Aucune facture trouvée. Essayez différents critères de recherche.") }}
 							</v-alert>
 						</v-col>
 					</v-row>
 				</v-container>
 				<v-card-actions class="mt-1">
 					<v-spacer></v-spacer>
-					<v-btn color="error mx-2" theme="dark" @click="close_dialog">{{ __("Close") }}</v-btn>
+					<v-btn color="error mx-2" theme="dark" @click="close_dialog">{{ __("Fermer") }}</v-btn>
 					<v-btn v-if="selected.length" color="success" theme="dark" @click="submit_dialog">{{
-						__("Select")
+						__("Sélectionner")
 					}}</v-btn>
 				</v-card-actions>
 			</v-card>
@@ -295,7 +295,7 @@ export default {
 		current_search_params: null,
 		headers: [
 			{
-				title: __("Customer"),
+				title: __("Client"),
 				value: "customer",
 				align: "start",
 				sortable: true,
@@ -307,19 +307,19 @@ export default {
 				value: "posting_date",
 			},
 			{
-				title: __("Invoice"),
+				title: __("Facture"),
 				value: "name",
 				align: "start",
 				sortable: true,
 			},
 			{
-				title: __("Return Valid Until"),
+				title: __("Retour Valide Jusqu'au"),
 				value: "posa_return_valid_upto",
 				align: "start",
 				sortable: false,
 			},
 			{
-				title: __("Amount"),
+				title: __("Montant"),
 				value: "grand_total",
 				align: "end",
 				sortable: false,
@@ -601,7 +601,7 @@ export default {
 						vm.dialog_data = [];
 						vm.has_more_invoices = false;
 						vm.eventBus.emit("show_message", {
-							title: __("No invoices found"),
+							title: __("Aucune facture trouvée"),
 							color: "warning",
 						});
 					}
@@ -610,7 +610,7 @@ export default {
 					vm.loading_more = false;
 					console.error("Error searching invoices:", err);
 					vm.eventBus.emit("show_message", {
-						title: __("Error searching invoices"),
+						title: __("Erreur lors de la recherche des factures"),
 						color: "error",
 					});
 				},

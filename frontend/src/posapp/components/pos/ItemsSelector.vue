@@ -1420,6 +1420,8 @@ import { useCustomersStore } from "../../stores/customersStore.js";
 
 import { storeToRefs } from "pinia";
 
+import { useInvoiceStore } from "../../stores/invoiceStore.js";
+
 
 
 export default {
@@ -1436,7 +1438,7 @@ export default {
 
 		const cartValidation = useCartValidation();
 
-
+		const invoiceStore = useInvoiceStore();
 
 		// Initialize Pinia store integration
 
@@ -1452,13 +1454,9 @@ export default {
 
 		});
 
-
-
 		const customersStore = useCustomersStore();
 
 		const { selectedCustomer } = storeToRefs(customersStore);
-
-
 
 		return {
 
@@ -1469,6 +1467,8 @@ export default {
 			fly,
 
 			cartValidation,
+
+			invoiceStore,
 
 			...itemsIntegration,
 
@@ -4770,16 +4770,12 @@ export default {
 
 				reservedStockData, // Pass reserved stock data for accurate validation
 
+				this.invoiceStore.invoiceDoc, // Pass invoice document to check if it's a return
+
 			);
 
-
-
 			if (!isValid) {
-
-				// Validation failed, error message already shown by validator
-
 				return;
-
 			}
 
 
@@ -8690,60 +8686,38 @@ export default {
 
 
 
-			if (availableQty !== null && availableQty < requestedQty) {
-
+			// Check stock availability for scanned items
+			// Allow zero stock items for return invoices
+			const invoiceDoc = this.invoiceStore.invoiceDoc;
+			const isReturnInvoice = invoiceDoc?.is_return;
+			
+			if (availableQty !== null && availableQty < requestedQty && !isReturnInvoice) {
 				const formattedAvailable = this.format_number
-
 					? this.format_number(availableQty, this.hide_qty_decimals ? 0 : this.float_precision)
-
 					: availableQty;
-
 				const formattedRequested = this.format_number
-
 					? this.format_number(requestedQty, this.hide_qty_decimals ? 0 : this.float_precision)
-
 					: requestedQty;
-
 				const negativeStockEnabled = this.isNegativeStockEnabled(newItem);
-
 				const exceedsAvailable = availableQty < requestedQty;
-
 				const shouldBlock =
-
 					(this.blockSaleBeyondAvailableQty && exceedsAvailable) ||
-
 					(!negativeStockEnabled && exceedsAvailable);
 
-
-
 				if (shouldBlock) {
-
 					this.showScanError({
-
 						message: formatStockShortageError(
-
 							newItem.item_name || newItem.item_code || scannedCode,
-
 							availableQty,
-
 							requestedQty,
-
 						),
-
 						code: scannedCode,
-
 						details: this.__("Adjust the quantity or enable negative stock to continue."),
-
 					});
-
 					return;
-
 				}
 
-
-
 				// Suppress low stock notifications when negative stock is allowed
-
 			}
 
 

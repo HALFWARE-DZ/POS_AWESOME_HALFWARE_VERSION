@@ -15,14 +15,17 @@ export function useCartValidation() {
 	const validationError = ref(null);
 
 	/**
-	 * Validates if an item can be added to the cart
+	 * Validates if an item can be added to cart
 	 * @param {Object} item - The item to validate
 	 * @param {number} requestedQty - The quantity requested
 	 * @param {Object} posProfile - POS profile settings
 	 * @param {Object} stockSettings - Stock settings
 	 * @param {Object} eventBus - Event bus for notifications
 	 * @param {boolean} blockSaleBeyondAvailableQty - Block sales beyond available quantity
-	 * @param {Object} reservedStockData - Reserved stock data for the item (optional)
+	 * @param {boolean} showNegativeStockWarning - Show negative stock warning
+	 * @param {boolean} skipServerValidation - Skip server-side validation
+	 * @param {Object} reservedStockData - Reserved stock data for item (optional)
+	 * @param {Object} invoiceDoc - Invoice document to check if it's a return (optional)
 	 * @returns {Promise<boolean>} - Returns true if item can be added, false otherwise
 	 */
 	async function validateCartItem(
@@ -35,6 +38,7 @@ export function useCartValidation() {
 		showNegativeStockWarning = true,
 		skipServerValidation = false,
 		reservedStockData = null,
+		invoiceDoc = null, // Add invoice document parameter
 	) {
 		isValidating.value = true;
 		validationError.value = null;
@@ -69,19 +73,10 @@ export function useCartValidation() {
 				availableQty = item.available_qty;
 			}
 
-			
-			// Step 4: Zero stock validation (if enabled) - TEMPORARILY DISABLED
-			// TODO: Re-enable after cache sync issues are resolved
-			/*
-			console.log('DEBUG: Zero stock validation check', {
-				item_code: item.item_code,
-				availableQty,
-				posa_display_items_in_stock: posProfile?.posa_display_items_in_stock,
-				reservedQty
-			});
-			
-			if (availableQty === 0 && posProfile?.posa_display_items_in_stock) {
-				console.log('DEBUG: Zero stock validation - blocking item');
+			// Step 4: Zero stock validation (if enabled)
+			// Allow zero stock items for return invoices
+			const zeroStockCondition = availableQty === 0 && posProfile?.posa_display_items_in_stock && !invoiceDoc?.is_return;
+			if (zeroStockCondition) {
 				const message = reservedQty > 0 
 					? `No stock available for ${item.item_name}. ${reservedQty} units are reserved.`
 					: `No stock available for ${item.item_name}`;
@@ -94,7 +89,6 @@ export function useCartValidation() {
 				}
 				return false;
 			}
-			*/
 
 			const isStockItem = parseBooleanSetting(item?.is_stock_item);
 
@@ -108,9 +102,8 @@ export function useCartValidation() {
 						parseBooleanSetting(item?.allow_negative_stock));
 				const exceedsAvailable =
 					typeof availableQty === "number" && requestedQty > availableQty;
-				const blockSale = !allowNegativeStock && exceedsAvailable;
+				const blockSale = !allowNegativeStock && exceedsAvailable && !invoiceDoc?.is_return;
 
-				
 				if (blockSale) {
 					const stockMessage = reservedQty > 0
 						? `Insufficient stock for ${item.item_name}. Available: ${availableQty}, Reserved: ${reservedQty}, Requested: ${requestedQty}`
@@ -158,11 +151,13 @@ export function useCartValidation() {
 			return performFallbackValidation(
 				item,
 				requestedQty,
+				posProfile, // Pass posProfile parameter
 				stockSettings,
 				eventBus,
 				blockSaleBeyondAvailableQty,
 				showNegativeStockWarning,
 				reservedStockData,
+				invoiceDoc, // Pass invoiceDoc to fallback validation
 			);
 		} finally {
 			isValidating.value = false;
@@ -232,11 +227,13 @@ export function useCartValidation() {
 	function performFallbackValidation(
 		item,
 		requestedQty,
+		posProfile, // Add posProfile parameter
 		stockSettings,
 		eventBus,
 		blockSaleBeyondAvailableQty = false,
 		showNegativeStockWarning = true,
 		reservedStockData = null,
+		invoiceDoc = null, // Add invoice document parameter
 	) {
 		console.warn("Using fallback validation due to server validation failure");
 
@@ -255,6 +252,21 @@ export function useCartValidation() {
 
 		const isStockItem = parseBooleanSetting(item?.is_stock_item);
 
+		// Zero stock validation for fallback - allow zero stock for return invoices
+		if (isStockItem && availableQty === 0 && posProfile?.posa_display_items_in_stock && !invoiceDoc?.is_return) {
+			const message = reservedQty > 0
+				? `No stock available for ${item.item_name}. ${reservedQty} units are reserved.`
+				: `No stock available for ${item.item_name}`;
+					
+			if (eventBus) {
+				eventBus.emit("show_message", {
+					title: message,
+					color: "error",
+				});
+			}
+			return false;
+		}
+
 		if (isStockItem) {
 			// Allow negative stock items when Allow Negative Stock is enabled
 			const allowNegativeStock =
@@ -262,8 +274,8 @@ export function useCartValidation() {
 				(parseBooleanSetting(stockSettings?.allow_negative_stock) ||
 					parseBooleanSetting(item?.allow_negative_stock));
 
-			// Simple negative stock check - only block if negative stock is not allowed
-			if (availableQty < 0 && !allowNegativeStock) {
+			// Simple negative stock check - only block if negative stock is not allowed and not return invoice
+			if (availableQty < 0 && !allowNegativeStock && !invoiceDoc?.is_return) {
 				if (eventBus) {
 					eventBus.emit("show_message", {
 						title: formatStockShortageError(
@@ -279,7 +291,7 @@ export function useCartValidation() {
 
 			// Check if requested quantity exceeds available stock
 			const exceedsAvailable = typeof availableQty === "number" && requestedQty > availableQty;
-			const blockSale = !allowNegativeStock && exceedsAvailable;
+			const blockSale = !allowNegativeStock && exceedsAvailable && !invoiceDoc?.is_return;
 			if (blockSale) {
 				const stockMessage = reservedQty > 0
 					? `Insufficient stock for ${item.item_name}. Available: ${availableQty}, Reserved: ${reservedQty}, Requested: ${requestedQty}`
