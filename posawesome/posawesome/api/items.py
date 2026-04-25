@@ -988,6 +988,20 @@ def get_item_detail(item, doc=None, warehouse=None, price_list=None, company=Non
     res["batch_no_data"] = batch_no_data
     res["serial_no_data"] = serial_no_data
     res["allow_negative_stock"] = frappe.db.get_value("Item", item_code, "allow_negative_stock")
+    
+    # FIX: Add offer-critical fields that may be missing from get_item_details
+    item_data = frappe.db.get_value("Item", item_code, [
+        "variant_of", 
+        "last_purchase_rate", 
+        "custom_la_famille", 
+        "custom_la_collection"
+    ], as_dict=True)
+    
+    if item_data:
+        res["variant_of"] = item_data.variant_of
+        res["last_purchase_rate"] = item_data.last_purchase_rate
+        res["custom_la_famille"] = item_data.custom_la_famille
+        res["custom_la_collection"] = item_data.custom_la_collection
 
     # Add UOMs data directly from item document
     uoms = frappe.get_all(

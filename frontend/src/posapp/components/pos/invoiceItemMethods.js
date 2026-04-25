@@ -1608,6 +1608,60 @@ export default {
 		this.packed_items = data.packed_items || [];
 		console.log("Items set:", this.items.length, "items");
 
+		// FIX: restore buying price and variant fields from cache before offers evaluate
+		if (this.items.length > 0 && this._itemBuyingPriceCache) {
+			this.items.forEach((item) => {
+				const cached = this._itemBuyingPriceCache[item.item_code];
+				if (cached) {
+					if (!item.last_purchase_rate && cached.last_purchase_rate) {
+						item.last_purchase_rate = cached.last_purchase_rate;
+					}
+					if (!item.variant_of && cached.variant_of) {
+						item.variant_of = cached.variant_of;
+					}
+					if (!item.custom_la_famille && cached.custom_la_famille) {
+						item.custom_la_famille = cached.custom_la_famille;
+					}
+					if (!item.custom_la_collection && cached.custom_la_collection) {
+						item.custom_la_collection = cached.custom_la_collection;
+					}
+					// ADD THIS — restore original price list rate so ApplyOnPrice calculates correctly:
+					if (cached.original_price_list_rate && cached.original_price_list_rate > item.price_list_rate) {
+						item.original_base_price_list_rate = cached.original_price_list_rate;
+						item.original_base_rate = cached.original_price_list_rate;
+						item.original_price_list_rate = cached.original_price_list_rate;
+						item.original_rate = cached.original_price_list_rate;
+						// Also fix price_list_rate itself so the UI shows it correctly
+						item.price_list_rate = cached.original_price_list_rate;
+						item.base_price_list_rate = cached.original_price_list_rate;
+					}
+				}
+			});
+		}
+
+		// Recalculate discount_amount for offer-applied items
+		this.items.forEach((item) => {
+			if (item.posa_offer_applied) {
+				const cached = this._itemBuyingPriceCache 
+					? this._itemBuyingPriceCache[item.item_code] 
+					: null;
+				
+				if (cached && cached.original_price_list_rate 
+					&& cached.original_price_list_rate > item.rate) {
+					// Restore correct price_list_rate
+					item.price_list_rate = cached.original_price_list_rate;
+					item.base_price_list_rate = cached.original_price_list_rate;
+					item.original_base_price_list_rate = cached.original_price_list_rate;
+					item.original_price_list_rate = cached.original_price_list_rate;
+					item.original_base_rate = cached.original_price_list_rate;
+					item.original_rate = cached.original_price_list_rate;
+					// Now discount_amount = price_list_rate - rate
+					item.discount_amount = cached.original_price_list_rate - item.rate;
+					item.base_discount_amount = cached.original_price_list_rate - item.rate;
+				}
+			}
+		});
+
 		if (data.is_return && data.return_against) {
 			this.items.forEach((item) => {
 				item.locked_price = true;
@@ -2247,6 +2301,25 @@ export default {
 			if (omitFreebies && item && item.auto_free_source) {
 				return;
 			}
+			
+			// FIX: restore discount_amount from cache before submitting if missing
+			if (item.posa_offer_applied && (!item.discount_amount || item.discount_amount === 0)) {
+				const cached = this._itemBuyingPriceCache 
+					? this._itemBuyingPriceCache[item.item_code] 
+					: null;
+				if (cached && cached.original_price_list_rate 
+					&& cached.original_price_list_rate > item.rate) {
+					item.discount_amount = cached.original_price_list_rate - item.rate;
+					item.base_discount_amount = cached.original_price_list_rate - item.rate;
+					item.price_list_rate = cached.original_price_list_rate;
+					item.base_price_list_rate = cached.original_price_list_rate;
+					item.discount_percentage = this.flt(
+						((cached.original_price_list_rate - item.rate) / cached.original_price_list_rate) * 100,
+						this.currency_precision
+					);
+				}
+			}
+			
 			const new_item = {
 				item_code: item.item_code,
 				// Retain the item name for offline invoices
@@ -3978,9 +4051,18 @@ export default {
 				// Benchmark note: normalize incoming price_list_rate (PLC) into base CC once.
 				const plcConversionRate = this._getPlcConversionRate();
 				if (data.price_list_rate !== 0 || !item.base_price_list_rate) {
+					// FIX: always update base_price_list_rate (it's the "original" price)
 					item.base_price_list_rate = data.price_list_rate * plcConversionRate;
+					
+					// FIX: but DON'T touch base_rate if offer is applied
 					if (!item.posa_offer_applied) {
 						item.base_rate = data.price_list_rate * plcConversionRate;
+					}
+					
+					// FIX: also restore original_base_price_list_rate if offer is applied
+					if (item.posa_offer_applied && !item.original_base_price_list_rate) {
+						item.original_base_price_list_rate = data.price_list_rate * plcConversionRate;
+						item.original_base_rate = data.price_list_rate * plcConversionRate;
 					}
 				}
 			}
@@ -4106,6 +4188,32 @@ export default {
 		}
 
 		item.last_purchase_rate = data.last_purchase_rate;
+		// NEW: populate offer-critical fields from server response
+		if (data.variant_of) {
+			item.variant_of = data.variant_of;
+		}
+		if (data.custom_la_famille) {
+			item.custom_la_famille = data.custom_la_famille;
+		}
+		if (data.custom_la_collection) {
+			item.custom_la_collection = data.custom_la_collection;
+		}
+		
+		// FIX: cache buying price fields per item_code so load_invoice can restore them
+		if (data.last_purchase_rate || data.variant_of) {
+			// DEBUG: Check if price_list_rate is already discounted
+			console.log("CACHE: storing price_list_rate for", item.item_code, data.price_list_rate);
+			
+			if (!this._itemBuyingPriceCache) this._itemBuyingPriceCache = {};
+			this._itemBuyingPriceCache[item.item_code] = {
+				last_purchase_rate: data.last_purchase_rate || 0,
+				variant_of: data.variant_of || item.variant_of || null,
+				custom_la_famille: data.custom_la_famille || item.custom_la_famille || null,
+				custom_la_collection: data.custom_la_collection || item.custom_la_collection || null,
+				// ADD THIS:
+				original_price_list_rate: data.price_list_rate || 0,  // server's clean price list rate
+			};
+		}
 		item.projected_qty = data.projected_qty;
 		item.reserved_qty = data.reserved_qty;
 		item.conversion_factor = data.conversion_factor;

@@ -811,7 +811,7 @@ export default {
 					projected_qty: item.projected_qty
 				});
 				
-				const item_buying_price = item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || 0;
+				const item_buying_price = item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || item._temp_buying_price || 0;
 				console.log("DEBUG: getFamilyOffer - resolved buying price", {
 					resolved_buying_price: item_buying_price
 				});
@@ -885,7 +885,7 @@ export default {
 					valuation_rate: item.valuation_rate
 				});
 				
-				const item_buying_price = item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || 0;
+				const item_buying_price = item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || item._temp_buying_price || 0;
 				console.log("DEBUG: getCollectionOffer - resolved buying price", {
 					resolved_buying_price: item_buying_price
 				});
@@ -982,7 +982,7 @@ export default {
 					valuation_rate: item.valuation_rate
 				});
 				
-				const item_buying_price = item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || 0;
+				const item_buying_price = item.last_purchase_rate || item.valuation_rate || item.buying_price || item.purchase_price || item.cost_price || item.actual_cost_rate || item._temp_buying_price || 0;
 				console.log("DEBUG: getTemplateOffer - resolved buying price", {
 					resolved_buying_price: item_buying_price
 				});
@@ -1659,13 +1659,31 @@ export default {
 
 				if (!item_offers.includes(offer.row_id)) {
 					// Store original rates only if this is the first offer being applied
-					if (!item.posa_offer_applied) {
+					if (!item.posa_offer_applied && !item.original_base_rate) {
 						// Store original prices normalized to conversion factor 1
 						const cf = flt(item.conversion_factor || 1);
 						item.original_base_rate = item.base_rate / cf;
 						item.original_base_price_list_rate = item.base_price_list_rate / cf;
 						item.original_rate = item.rate / cf;
 						item.original_price_list_rate = item.price_list_rate / cf;
+						
+						// FIX: always initialize cache and store
+						if (item.item_code) {
+							if (!this._itemBuyingPriceCache) this._itemBuyingPriceCache = {};
+							if (!this._itemBuyingPriceCache[item.item_code]) {
+								this._itemBuyingPriceCache[item.item_code] = {};
+							}
+							this._itemBuyingPriceCache[item.item_code].original_price_list_rate = 
+								item.price_list_rate;
+							// also store last_purchase_rate and variant_of if available
+							if (item.last_purchase_rate) {
+								this._itemBuyingPriceCache[item.item_code].last_purchase_rate = 
+									item.last_purchase_rate;
+							}
+							if (item.variant_of) {
+								this._itemBuyingPriceCache[item.item_code].variant_of = item.variant_of;
+							}
+						}
 					}
 
 					const conversion_factor = flt(item.conversion_factor || 1);
@@ -1846,8 +1864,19 @@ export default {
 				if (item_offers.includes(offer.row_id)) {
 					// Check if we have original rates stored
 					if (!item.original_base_rate) {
+						// Try to restore from buying price cache before giving up
+						if (this._itemBuyingPriceCache && this._itemBuyingPriceCache[item.item_code]) {
+							const cached = this._itemBuyingPriceCache[item.item_code];
+							if (cached.last_purchase_rate) {
+								item.last_purchase_rate = cached.last_purchase_rate;
+							}
+						}
+						// If still no original rates, fetch and skip removal this cycle
+						// Offer will re-evaluate after update_item_detail completes
 						console.warn("Original rates not found, fetching from server");
-						this.update_item_detail(item);
+						this.update_item_detail(item).then(() => {
+							this.scheduleOfferRefresh();
+						});
 						return;
 					}
 

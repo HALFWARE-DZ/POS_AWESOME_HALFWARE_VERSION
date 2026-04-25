@@ -2051,6 +2051,91 @@ export default {
 				this.paid_change = paidChange;
 			}
 
+			// DEBUG: Log discount and cache state before submission
+			console.log("=== SUBMIT INVOICE DEBUG ===");
+			console.log("Invoice items count:", this.invoice_doc.items?.length || 0);
+			this.invoice_doc.items?.forEach((item, index) => {
+				const cached = this._itemBuyingPriceCache ? this._itemBuyingPriceCache[item.item_code] : null;
+				console.log(`Item ${index + 1}: ${item.item_code}`, {
+					has_offer: item.posa_offer_applied,
+					rate: item.rate,
+					price_list_rate: item.price_list_rate,
+					discount_amount: item.discount_amount,
+					discount_percentage: item.discount_percentage,
+					cached_original: cached?.original_price_list_rate,
+					cached_valid: cached && cached.original_price_list_rate > 0
+				});
+			});
+			console.log("=== END SUBMIT DEBUG ===");
+
+			// FINAL PROTECTION: Fix any remaining corrupted items right before submission
+			console.log("=== FINAL PROTECTION CHECK ===");
+			
+			// Find the correct price from any item that was already fixed by cache restoration
+			// If cache is cleared, we can infer the correct price from items that already have it right
+			let correctOriginalPrice = null;
+			this.invoice_doc.items?.forEach((item) => {
+				if (item.posa_offer_applied && item.discount_amount > 0) {
+					// This item has correct discount, so price_list_rate should be the original price
+					const inferredOriginal = item.price_list_rate;
+					if (inferredOriginal > item.rate) {
+						correctOriginalPrice = inferredOriginal;
+					}
+				}
+			});
+			
+			console.log("Inferred correct original price:", correctOriginalPrice);
+			
+			this.invoice_doc.items?.forEach((item) => {
+				if (item.posa_offer_applied) {
+					const currentPriceListRate = this.flt(item.price_list_rate, this.currency_precision);
+					const rateDiff = Math.abs(currentPriceListRate - item.rate);
+					
+					// ONLY fix if: price_list_rate equals rate (corrupted) AND we have the correct price
+					const isCorrupted = rateDiff < 0.01; // price_list_rate equals discounted rate = corrupted
+					const needsFix = isCorrupted && correctOriginalPrice;
+					
+					console.log(`FINAL PROTECTION for ${item.item_code}:`, {
+						currentPriceListRate,
+						itemRate: item.rate,
+						rateDiff,
+						current_discount: item.discount_amount,
+						correctOriginalPrice,
+						isCorrupted,
+						needs_fix: needsFix
+					});
+					
+					// Fix the item ONLY if it's corrupted (price_list_rate equals rate) and we have the correct price
+					if (needsFix) {
+						console.log(`FINAL PROTECTION: FIXING ${item.item_code} before submission (using inferred price)`);
+						item.price_list_rate = correctOriginalPrice;
+						item.base_price_list_rate = correctOriginalPrice;
+						item.original_base_price_list_rate = correctOriginalPrice;
+						item.original_price_list_rate = correctOriginalPrice;
+						item.original_base_rate = correctOriginalPrice;
+						item.original_rate = correctOriginalPrice;
+						// Fix discount amount
+						item.discount_amount = correctOriginalPrice - item.rate;
+						item.base_discount_amount = correctOriginalPrice - item.rate;
+						// Fix discount percentage
+						item.discount_percentage = correctOriginalPrice 
+							? this.flt((item.discount_amount / correctOriginalPrice) * 100, this.currency_precision) 
+							: 0;
+						
+						console.log(`FINAL PROTECTION: FIXED ${item.item_code}:`, {
+							new_price_list_rate: item.price_list_rate,
+							new_discount_amount: item.discount_amount,
+							new_discount_percentage: item.discount_percentage
+						});
+					} else if (!isCorrupted) {
+						console.log(`FINAL PROTECTION: ${item.item_code} already correct`);
+					} else if (!correctOriginalPrice) {
+						console.log(`FINAL PROTECTION: ${item.item_code} corrupted but cannot determine correct price`);
+					}
+				}
+			});
+			console.log("=== END FINAL PROTECTION ===");
+
 			let data = {
 				total_change: changeLimit,
 				paid_change: paidChange,

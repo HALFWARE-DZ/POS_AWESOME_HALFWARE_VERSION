@@ -609,10 +609,15 @@
 													<div style="font-size:0.72rem; color:#999; margin-top:2px;">{{ item.item_code || item.name || '' }}</div>
 												</td>
 												<td style="padding:8px 10px; text-align:center; font-size:0.875rem;">{{ item.qty || 0 }}</td>
-												<td style="padding:8px 10px; text-align:right; font-size:0.875rem;">{{ formatCurrency(item.rate || item.price || 0) }}</td>
+												<td style="padding:8px 10px; text-align:right; font-size:0.875rem;">{{ formatCurrency(item.price_list_rate || item.rate || 0) }}</td>
 												<td style="padding:8px 10px; text-align:right; font-size:0.875rem;">
-													<span v-if="(item.discount_amount || 0) > 0" style="color:#e53935;">-{{ formatCurrency(item.discount_amount) }}</span>
-													<span v-else-if="(item.discount_percentage || 0) > 0" style="color:#e53935;">{{ item.discount_percentage }}%</span>
+													<span v-if="(item.discount_percentage || 0) > 0" style="color:#e53935;">
+														-{{ item.discount_percentage }}%<br>
+														<small>-{{ formatCurrency((item.discount_amount || 0) * Math.abs(item.qty || 1)) }}</small>
+													</span>
+													<span v-else-if="(item.discount_amount || 0) > 0" style="color:#e53935;">
+														-{{ formatCurrency((item.discount_amount || 0) * Math.abs(item.qty || 1)) }}
+													</span>
 													<span v-else style="color:#bbb;">—</span>
 												</td>
 												<td style="padding:8px 10px; text-align:right; font-size:0.875rem;">
@@ -624,8 +629,13 @@
 										</tbody>
 										<tfoot>
 											<tr style="border-top:2px solid #ddd; background:#fafafa;">
-												<td colspan="5" style="padding:10px; text-align:right; font-weight:600; color:#555; font-size:0.875rem;">Total général:</td>
-												<td style="padding:10px; text-align:right; font-weight:700; color:#009688; font-size:1rem;">{{ formatCurrency(selectedInvoice.grand_total) }}</td>
+												<td colspan="3" style="padding:10px; text-align:right; font-weight:600; color:#555; font-size:0.875rem;">Total Remise:</td>
+												<td style="padding:10px; text-align:right; font-weight:700; color:#e53935; font-size:0.875rem;">
+													-{{ formatCurrency(currentItems.reduce((s, i) => s + (i.discount_amount || 0) * Math.abs(i.qty || 1), 0)) }}
+												</td>
+												<td colspan="2" style="padding:10px; text-align:right; font-weight:700; color:#009688; font-size:1rem;">
+													{{ formatCurrency(selectedInvoice.grand_total) }}
+												</td>
 											</tr>
 										</tfoot>
 									</table>
