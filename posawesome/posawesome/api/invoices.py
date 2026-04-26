@@ -328,6 +328,72 @@ def _deduplicate_free_items(invoice_doc):
         invoice_doc.set("items", unique)
 
 
+def _absorb_distributed_discount_into_item_discount(invoice_doc):
+    """
+    Before submit: merge distributed_discount_amount into discount_amount on each item
+    so the final invoice shows item-level discounts instead of a separate distributed discount.
+
+    Also recalculates item.rate and item.amount so that grand_total stays correct
+    after we zero out the invoice-level additional discount.
+    Works for both normal and return invoices.
+    """
+    if not invoice_doc.get("items"):
+        return
+
+    any_absorbed = False
+
+    for item in invoice_doc.items:
+        # distributed_discount_amount is the TOTAL for the line (already × qty)
+        distributed_line = flt(item.get("distributed_discount_amount") or 0)
+        if not distributed_line:
+            continue
+
+        any_absorbed = True
+
+        price_list_rate = flt(item.get("price_list_rate") or 0)
+        qty = flt(item.get("qty") or 1)
+        abs_qty = abs(qty) or 1
+
+        # Convert line-total distributed discount to per-unit so it matches
+        # discount_amount (which ERPNext always stores per unit)
+        distributed_per_unit = distributed_line / abs_qty
+
+        # Merge into discount_amount (per unit)
+        existing_discount = flt(item.get("discount_amount") or 0)
+        new_discount_amount = existing_discount + distributed_per_unit
+
+        # Recalculate discount_percentage from price_list_rate (per unit basis)
+        if price_list_rate:
+            new_discount_pct = (new_discount_amount / price_list_rate) * 100
+        else:
+            new_discount_pct = flt(item.get("discount_percentage") or 0)
+
+        # Recalculate rate: price_list_rate minus per-unit discount
+        new_rate = price_list_rate - new_discount_amount if price_list_rate else flt(item.get("rate") or 0)
+
+        # Recalculate amount: rate * qty (preserve sign for returns)
+        sign = -1 if qty < 0 else 1
+        new_amount = new_rate * abs_qty * sign
+
+        item.discount_amount = new_discount_amount
+        item.discount_percentage = new_discount_pct
+        item.rate = flt(new_rate, item.precision("rate"))
+        item.amount = flt(new_amount, item.precision("amount"))
+
+        # Clear distributed_discount_amount — it's now absorbed into discount_amount
+        item.distributed_discount_amount = 0
+
+    if not any_absorbed:
+        return
+
+    # Clear invoice-level additional discount — value is now in item discounts
+    invoice_doc.additional_discount_percentage = 0
+    invoice_doc.discount_amount = 0
+
+    # Recalculate totals so grand_total / net_total / paid_amount stay consistent
+    invoice_doc.calculate_taxes_and_totals()
+
+
 def _strip_client_freebies_from_payload(payload):
     """Remove auto-applied POS freebies from inbound payloads before saving."""
 
@@ -1084,6 +1150,9 @@ def submit_invoice(invoice, data, submit_in_background=False):
             },
         )
     else:
+        # Absorb distributed discount into item-level discount_amount before submitting
+        _absorb_distributed_discount_into_item_discount(invoice_doc)
+
         invoice_doc.submit()
 
         _create_change_payment_entries(invoice_doc, data, pos_profile, cash_account)
@@ -1132,6 +1201,9 @@ def submit_in_background_job(kwargs):
                 invoice_doc.loyalty_redemption_cost_center = invoice_doc.cost_center
 
         invoice_doc.save()
+
+        # Absorb distributed discount into item-level discount_amount before submitting
+        _absorb_distributed_discount_into_item_discount(invoice_doc)
 
         invoice_doc.submit()
 
