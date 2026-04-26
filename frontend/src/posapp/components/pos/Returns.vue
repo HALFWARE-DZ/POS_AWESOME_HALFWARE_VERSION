@@ -172,17 +172,7 @@
 							<v-icon start>mdi-refresh</v-icon>
 							{{ __("Effacer") }}
 						</v-btn>
-						<v-btn
-							v-if="pos_profile.posa_allow_return_without_invoice == 1"
-							variant="text"
-							class="ml-2"
-							color="secondary"
-							theme="dark"
-							@click="return_without_invoice"
-						>
-							{{ __("Retour d'article") }}
-						</v-btn>
-					</v-row>
+											</v-row>
 
 					<!-- Results -->
 					<v-row>

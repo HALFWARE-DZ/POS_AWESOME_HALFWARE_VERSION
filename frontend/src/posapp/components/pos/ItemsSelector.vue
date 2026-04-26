@@ -4674,7 +4674,16 @@ export default {
 
 			item = { ...item };
 
-
+			// Prevent adding items to return invoices
+			const invoiceDoc = this.invoiceStore.invoiceDoc;
+			if (invoiceDoc && invoiceDoc.is_return) {
+				this.eventBus.emit("show_message", {
+					title: __("Les articles ne peuvent pas être ajoutés aux factures de retour. Veuillez sélectionner une facture existante."),
+					color: "error",
+				});
+				frappe.utils.play_sound("error");
+				return;
+			}
 
 			// Handle variant items
 
@@ -7184,6 +7193,17 @@ export default {
 
 			this.resetKeyboardScanDetection();
 
+			// Prevent barcode scanning for return invoices
+			const invoiceDoc = this.invoiceStore.invoiceDoc;
+			if (invoiceDoc && invoiceDoc.is_return) {
+				this.eventBus.emit("show_message", {
+					title: __("Le scan de codes-barres n'est pas autorisé pour les factures de retour. Veuillez sélectionner une facture existante."),
+					color: "error",
+				});
+				frappe.utils.play_sound("error");
+				return;
+			}
+
 			if (this.scannerLocked) {
 
 				this.playScanTone("error");
@@ -7965,6 +7985,17 @@ export default {
 		},
 
 		async processScannedItem(scannedCode) {
+
+			// Prevent processing scanned items for return invoices
+			const invoiceDoc = this.invoiceStore.invoiceDoc;
+			if (invoiceDoc && invoiceDoc.is_return) {
+				this.eventBus.emit("show_message", {
+					title: __("Le scan de codes-barres n'est pas autorisé pour les factures de retour. Veuillez sélectionner une facture existante."),
+					color: "error",
+				});
+				frappe.utils.play_sound("error");
+				return;
+			}
 
 			const mark = perfMarkStart("pos:scan-process");
 

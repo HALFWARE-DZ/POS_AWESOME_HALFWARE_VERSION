@@ -36,7 +36,8 @@
 							:prefix="currencySymbol(pos_profile.currency)"
 							:disabled="
 								!pos_profile.posa_allow_user_to_edit_additional_discount ||
-								!!discount_percentage_offer_name
+								!!discount_percentage_offer_name ||
+								isReturnInvoice
 							"
 							class="summary-field"
 						/>
@@ -58,7 +59,8 @@
 							color="warning"
 							:disabled="
 								!pos_profile.posa_allow_user_to_edit_additional_discount ||
-								!!discount_percentage_offer_name
+								!!discount_percentage_offer_name ||
+								isReturnInvoice
 							"
 							class="summary-field"
 						/>
@@ -89,7 +91,7 @@
 							variant="solo"
 							density="compact"
 							color="primary"
-							:disabled="!pos_profile.posa_allow_user_to_edit_additional_discount"
+							:disabled="!pos_profile.posa_allow_user_to_edit_additional_discount || isReturnInvoice"
 							class="summary-field"
 							@focus="handleTotalFocus"
 							@change="handleTotalChange"
@@ -229,6 +231,7 @@ export default {
 		currencySymbol: Function,
 		discount_percentage_offer_name: [String, Number],
 		isNumber: Function,
+		invoice_doc: Object,
 	},
 	data() {
 		return {
@@ -274,6 +277,9 @@ export default {
 				console.error("Failed to load item selector settings:", e);
 			}
 			return false;
+		},
+		isReturnInvoice() {
+			return this.invoice_doc && this.invoice_doc.is_return;
 		},
 	},
 	watch: {

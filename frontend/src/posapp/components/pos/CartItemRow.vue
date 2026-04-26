@@ -403,13 +403,12 @@ export default {
 			return (
 				!!this.item.posa_is_replace ||
 				this.item.disable_increment ||
-				(this.isReturnInvoice &&
-					(this.item.is_free_item || this.item.posa_is_offer || this.item.posa_is_replace))
+				this.isReturnInvoice // Disable all increment for return invoices
 			);
 		},
 		disableInput() {
 			return (
-				this.isReturnInvoice &&
+				this.isReturnInvoice || // Disable all input for return invoices
 				(this.item.is_free_item || this.item.posa_is_offer || this.item.posa_is_replace)
 			);
 		},
@@ -417,14 +416,16 @@ export default {
 			return (
 				!this.posProfile.posa_allow_user_to_edit_rate ||
 				!!this.item.posa_is_replace ||
-				!!this.item.posa_offer_applied
+				!!this.item.posa_offer_applied ||
+				this.isReturnInvoice // Disable rate editing for return invoices
 			);
 		},
 		disableDiscountEdit() {
 			return (
 				!this.posProfile.posa_allow_user_to_edit_item_discount ||
 				!!this.item.posa_is_replace ||
-				!!this.item.posa_offer_applied
+				!!this.item.posa_offer_applied ||
+				this.isReturnInvoice // Disable discount editing for return invoices
 			);
 		},
 	},

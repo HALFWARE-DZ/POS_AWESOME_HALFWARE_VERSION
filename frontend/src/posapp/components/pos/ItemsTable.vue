@@ -1256,6 +1256,12 @@ export default {
 
 		// Optimized expanded update handler
 		handleExpandedUpdate(val) {
+			// Prevent expansion for return invoices
+			if (this.isReturnInvoice) {
+				// Keep expanded empty for return invoices
+				this.$emit("update:expanded", []);
+				return;
+			}
 			const mappedValues = val.map((v) => (typeof v === "object" ? v.posa_row_id : v));
 			this.$emit("update:expanded", mappedValues);
 		},
