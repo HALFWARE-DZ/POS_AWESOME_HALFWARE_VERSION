@@ -136,7 +136,7 @@
    "fieldname": "apply_rule_on_template",
    "fieldtype": "Link",
    "label": "Apply Rule On Template",
-   "options": "Item Template"
+   "options": "Item"
   },
   {
    "fieldname": "apply_rule_on_family",

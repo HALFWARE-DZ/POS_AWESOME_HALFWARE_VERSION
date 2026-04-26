@@ -395,8 +395,8 @@ export default {
 		disableDecrement() {
 			return (
 				!!this.item.posa_is_replace ||
-				(this.isReturnInvoice &&
-					(this.item.is_free_item || this.item.posa_is_offer || this.item.posa_is_replace))
+				this.isReturnInvoice || // Disable all decrement for return invoices
+				(this.item.is_free_item || this.item.posa_is_offer || this.item.posa_is_replace)
 			);
 		},
 		disableIncrement() {

@@ -1892,6 +1892,129 @@ export default {
 					return;
 				}
 				
+				// VALIDATION: Maximum discount allowed check
+				if (this.pos_profile && this.pos_profile.posa_max_discount_allowed > 0) {
+					const maxDiscountPercentage = this.flt(this.pos_profile.posa_max_discount_allowed);
+					
+					
+					// Calculate the actual additional discount percentage from discount amount
+					// The total field should already be BEFORE discount, so we use it directly
+					const totalBeforeDiscount = this.flt(
+						this.invoice_doc.total || this.invoice_doc.grand_total || 0,
+						this.currency_precision
+					);
+					
+					if (totalBeforeDiscount > 0) {
+						const calculatedAdditionalDiscountPercentage = this.flt(
+							(this.invoice_doc.discount_amount / totalBeforeDiscount) * 100
+						);
+						
+						console.log("calculatedAdditionalDiscountPercentage:", calculatedAdditionalDiscountPercentage);
+						
+						if (calculatedAdditionalDiscountPercentage > maxDiscountPercentage) {
+							console.log("BLOCKING: calculatedAdditionalDiscountPercentage", calculatedAdditionalDiscountPercentage, ">", maxDiscountPercentage);
+							this.eventBus.emit("show_message", {
+								title: __("Discount limit exceeded! Maximum allowed: {0}%, Current: {1}%", [
+									maxDiscountPercentage,
+									calculatedAdditionalDiscountPercentage.toFixed(2)
+								]),
+								color: "error",
+							});
+							frappe.utils.play_sound("error");
+							return;
+						}
+					}
+					
+					// Check total discount amount from invoice_doc
+					if (this.invoice_doc && this.invoice_doc.discount_amount > 0) {
+						const totalBeforeDiscount = this.flt(
+							this.invoice_doc.total || this.invoice_doc.grand_total || 0,
+							this.currency_precision
+						) + this.flt(this.invoice_doc.discount_amount);
+						
+						console.log("totalBeforeDiscount:", totalBeforeDiscount);
+						
+						if (totalBeforeDiscount > 0) {
+							const actualDiscountPercentage = this.flt(
+								(this.invoice_doc.discount_amount / totalBeforeDiscount) * 100
+							);
+							
+							
+							if (actualDiscountPercentage > maxDiscountPercentage) {
+								this.eventBus.emit("show_message", {
+									title: __("Discount limit exceeded! Maximum allowed: {0}%, Current: {1}%", [
+										maxDiscountPercentage,
+										actualDiscountPercentage.toFixed(2)
+									]),
+									color: "error",
+								});
+								frappe.utils.play_sound("error");
+								return;
+							}
+						}
+					}
+					
+					// Check individual item discounts
+					if (this.invoice_doc && this.invoice_doc.items && Array.isArray(this.invoice_doc.items)) {
+						for (const item of this.invoice_doc.items) {
+							// Check discount percentage if available
+							if (item.discount_percentage && this.flt(item.discount_percentage) > maxDiscountPercentage) {
+								this.eventBus.emit("show_message", {
+									title: __("Item discount limit exceeded for {0}! Maximum allowed: {1}%, Current: {2}%", [
+										item.item_name || item.item_code,
+										maxDiscountPercentage,
+										item.discount_percentage
+									]),
+									color: "error",
+								});
+								frappe.utils.play_sound("error");
+								return;
+							}
+							
+							// Check discount amount as percentage of price list rate
+							if (item.discount_amount && item.price_list_rate && this.flt(item.price_list_rate) > 0) {
+								const discountPercentage = this.flt(
+									(this.flt(item.discount_amount) / this.flt(item.price_list_rate)) * 100
+								);
+								
+								if (discountPercentage > maxDiscountPercentage) {
+									this.eventBus.emit("show_message", {
+										title: __("Item discount limit exceeded for {0}! Maximum allowed: {1}%, Current: {2}%", [
+											item.item_name || item.item_code,
+											maxDiscountPercentage,
+											discountPercentage.toFixed(2)
+										]),
+										color: "error",
+									});
+									frappe.utils.play_sound("error");
+									return;
+								}
+							}
+							
+							// Also check if discount is applied through rate reduction
+							if (item.price_list_rate && item.rate && this.flt(item.price_list_rate) > this.flt(item.rate)) {
+								const rateReductionAmount = this.flt(item.price_list_rate) - this.flt(item.rate);
+								const discountPercentage = this.flt(
+									(rateReductionAmount / this.flt(item.price_list_rate)) * 100
+								);
+								
+								if (discountPercentage > maxDiscountPercentage) {
+									this.eventBus.emit("show_message", {
+										title: __("Item discount limit exceeded for {0}! Maximum allowed: {1}%, Current: {2}%", [
+											item.item_name || item.item_code,
+											maxDiscountPercentage,
+											discountPercentage.toFixed(2)
+										]),
+										color: "error",
+									});
+									frappe.utils.play_sound("error");
+									return;
+								}
+							}
+						}
+					}
+				}
+				
 				// For return invoices, ensure payment amounts are negative
 				if (this.invoice_doc.is_return) {
 					this.ensureReturnPaymentsAreNegative();

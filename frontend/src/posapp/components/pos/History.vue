@@ -63,7 +63,7 @@
 					</v-col>
 				</v-row>
 				<v-row dense class="mt-2">
-					<v-col cols="12" md="3">
+					<v-col cols="12" md="2">
 						<v-text-field
 							v-model="filters.barcode"
 							label="Code à barres"
@@ -74,6 +74,19 @@
 							@keyup.enter="loadInvoices"
 							@input="debouncedSearch"
 							prefix="mdi-barcode"
+						></v-text-field>
+					</v-col>
+					<v-col cols="12" md="2">
+						<v-text-field
+							v-model="filters.item_code"
+							label="Code article"
+							variant="outlined"
+							density="compact"
+							hide-details
+							clearable
+							@keyup.enter="loadInvoices"
+							@input="debouncedSearch"
+							prefix="mdi-tag"
 						></v-text-field>
 					</v-col>
 					<v-col cols="12" md="3">
@@ -891,6 +904,7 @@ export default {
 				customer: '',
 				invoice_name: '',
 				barcode: '',
+				item_code: '',
 				status: ''
 			},
 			statusOptions: [
@@ -974,8 +988,10 @@ export default {
 				// 	filters.push(['posa_pos_opening_shift', '=', posData.pos_opening_shift]);
 				// }
 				
-				// If searching by barcode, we need to search in invoice items too
+				// If searching by barcode or item code, we need to search in invoice items too
 				let invoices = [];
+				let itemInvoices = [];
+				
 				if (this.filters.barcode) {
 					// First get invoices matching barcode in custom_barcode field
 					const result1 = await frappe.call({
@@ -1002,10 +1018,26 @@ export default {
 						}
 					});
 					
-					console.log('Item invoices from Python:', itemInvoicesResult.message?.length || 0);
+					console.log('Item invoices from Python (barcode):', itemInvoicesResult.message?.length || 0);
+					itemInvoices = itemInvoicesResult.message || [];
+				}
+				
+				if (this.filters.item_code) {
+					// Get invoices that contain items with the item code using Python function
+					const itemCodeInvoicesResult = await frappe.call({
+						method: 'posawesome.api.get_invoices_by_item_code',
+						args: {
+							item_code: this.filters.item_code
+						}
+					});
 					
-					// Merge results and remove duplicates
-					const itemInvoices = itemInvoicesResult.message || [];
+					console.log('Item invoices from Python (item code):', itemCodeInvoicesResult.message?.length || 0);
+					const itemCodeInvoices = itemCodeInvoicesResult.message || [];
+					itemInvoices = [...itemInvoices, ...itemCodeInvoices];
+				}
+				
+				// If we have barcode or item code search, merge results and remove duplicates
+				if (this.filters.barcode || this.filters.item_code) {
 					const allInvoices = [...invoices, ...itemInvoices];
 					const uniqueInvoices = allInvoices.filter((invoice, index, self) => 
 						index === self.findIndex((inv) => inv.name === invoice.name)
@@ -1319,6 +1351,7 @@ export default {
 				customer: '',
 				invoice_name: '',
 				barcode: '',
+				item_code: '',
 				status: ''
 			};
 			this.setDefaultDates();
