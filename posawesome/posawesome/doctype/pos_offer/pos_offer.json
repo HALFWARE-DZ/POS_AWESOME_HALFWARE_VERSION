@@ -23,6 +23,8 @@
   "item_group",
   "brand",
   "apply_rule_on_template",
+  "apply_rule_on_family",
+  "apply_rule_on_collection",
   "valid_from",
   "valid_upto",
   "coupon_based",
@@ -81,7 +83,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Qualifying Transaction / Item",
-   "options": "\nItem Code\nItem Group\nBrand\nTransaction\nTemplate",
+   "options": "\nItem Code\nItem Group\nBrand\nTransaction\nTemplate\nFamily\nCollection",
    "reqd": 1
   },
   {
@@ -135,6 +137,18 @@
    "fieldtype": "Link",
    "label": "Apply Rule On Template",
    "options": "Item Template"
+  },
+  {
+   "fieldname": "apply_rule_on_family",
+   "fieldtype": "Link",
+   "label": "Apply Rule On Family",
+   "options": "Item Family"
+  },
+  {
+   "fieldname": "apply_rule_on_collection",
+   "fieldtype": "Link",
+   "label": "Apply Rule On Collection",
+   "options": "Item Collection"
   },
   {
    "default": "0",

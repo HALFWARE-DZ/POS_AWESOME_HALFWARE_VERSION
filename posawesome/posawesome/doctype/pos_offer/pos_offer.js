@@ -71,6 +71,12 @@ const controllers = (frm) => {
 	frm.toggle_display("apply_rule_on_template", frm.doc.apply_on === "Template");
 	frm.toggle_reqd("apply_rule_on_template", frm.doc.apply_on === "Template");
 
+	frm.toggle_display("apply_rule_on_family", frm.doc.apply_on === "Family");
+	frm.toggle_reqd("apply_rule_on_family", frm.doc.apply_on === "Family");
+
+	frm.toggle_display("apply_rule_on_collection", frm.doc.apply_on === "Collection");
+	frm.toggle_reqd("apply_rule_on_collection", frm.doc.apply_on === "Collection");
+
 	frm.toggle_reqd("min_amt", frm.doc.apply_on === "Transaction");
 
 	frm.toggle_display("apply_for_section", frm.doc.offer === "Give Product");
