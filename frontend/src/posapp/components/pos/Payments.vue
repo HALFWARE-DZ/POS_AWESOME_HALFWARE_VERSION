@@ -323,25 +323,7 @@
 							persistent-placeholder
 						></v-text-field>
 					</v-col>
-					<v-col cols="6">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="frappe._('Grand Total (Editable)')"
-							class="sleek-field pos-themed-input"
-							hide-details
-							v-model="editable_grand_total"
-							:prefix="currencySymbol(invoice_doc.currency)"
-							persistent-placeholder
-							@blur="updateGrandTotal"
-							@keyup.enter="updateGrandTotal"
-							type="number"
-							:hint="frappe._('Type desired total to auto-calculate discount')"
-							persistent-hint
-						></v-text-field>
-					</v-col>
-					<v-col v-if="invoice_doc && invoice_doc.rounded_total" cols="6">
+										<v-col v-if="invoice_doc && invoice_doc.rounded_total" cols="6">
 						<v-text-field
 							density="compact"
 							variant="solo"
@@ -612,16 +594,38 @@
 							
 							<!-- Show original invoice details -->
 							<v-row class="mb-3">
-								<v-col cols="6">
+								<v-col cols="4">
 									<div class="text-caption text-medium-emphasis">{{ frappe._('Total de la facture originale') }}</div>
 									<div class="text-h6 font-weight-bold">
 										{{ formatCurrency(getOriginalInvoiceTotal()) }}
 									</div>
 								</v-col>
-								<v-col cols="6">
+								<v-col cols="4">
 									<div class="text-caption text-medium-emphasis">{{ frappe._('Montant initialement payé') }}</div>
 									<div class="text-h6 font-weight-bold green--text">
 										{{ formatCurrency(getOriginalPaidAmount()) }}
+									</div>
+								</v-col>
+								<v-col cols="4">
+									<div class="text-caption text-medium-emphasis">{{ frappe._('Solde restant dû') }}</div>
+									<div class="text-h6 font-weight-bold orange--text">
+										{{ formatCurrency(getOutstandingBalance()) }}
+									</div>
+								</v-col>
+							</v-row>
+							
+							<!-- Current return calculation -->
+							<v-row class="mb-3">
+								<v-col cols="6">
+									<div class="text-caption text-medium-emphasis">{{ frappe._('Total des articles retournés') }}</div>
+									<div class="text-h6 font-weight-bold blue--text">
+										{{ formatCurrency(getCurrentReturnItemsTotal()) }}
+									</div>
+								</v-col>
+								<v-col cols="6">
+									<div class="text-caption text-medium-emphasis">{{ frappe._('Remboursement calculé') }}</div>
+									<div class="text-h6 font-weight-bold" :class="original_invoice_data ? 'green--text' : 'grey--text'">
+										{{ original_invoice_data ? formatCurrency(getCalculatedRefundAmount()) : '...' }}
 									</div>
 								</v-col>
 							</v-row>
@@ -634,13 +638,15 @@
 										color="primary"
 										type="number"
 										min="0"
-										:max="getOriginalPaidAmount()"
+										:max="getMaxRefundableAmount()"
 										v-model.number="return_amount"
 										:label="frappe._('Montant à rembourser au client')"
 										:prefix="currencySymbol(invoice_doc.currency)"
 										:rules="[maxReturnAmountRule]"
-										hint="Le montant maximal remboursable est le montant initialement payé."
+										:hint="getReturnAmountHint()"
 										persistent-hint
+										:readonly="!original_invoice_data"
+										:loading="invoice_doc.is_return && !original_invoice_data"
 									></v-text-field>
 								</v-col>
 							</v-row>
@@ -718,22 +724,7 @@
 					</v-col>
 				</v-row>
 				<!-- Print Format Selection -->
-				<v-row class="pb-0 mb-2" align="start">
-					<v-col cols="12">
-						<v-select
-							density="compact"
-							clearable
-							variant="solo"
-							color="primary"
-							:label="frappe._('Print Format')"
-							v-model="print_format"
-							:items="print_formats"
-							class="sleek-field pos-themed-input"
-							:no-data-text="__('No Print Formats Found')"
-							hide-details
-						></v-select>
-					</v-col>
-				</v-row>
+				
 			</div>
 		</v-card>
 
@@ -1239,10 +1230,20 @@ export default {
 		// Validation rule for return amount
 		maxReturnAmountRule() {
 			return (value) => {
-				if (!value || value <= this.getOriginalPaidAmount()) {
-					return true;
+				const max_refundable = this.getMaxRefundableAmount();
+				const num_value = parseFloat(value) || 0;
+				
+				// Enforce minimum 0
+				if (num_value < 0) {
+					return "Le montant du remboursement ne peut pas être négatif.";
 				}
-				return `Return amount cannot exceed original paid amount (${this.formatCurrency(this.getOriginalPaidAmount())})`;
+				
+				// Enforce maximum suggested value
+				if (num_value > max_refundable) {
+					return `Le montant du remboursement ne peut pas dépasser ${this.formatCurrency(max_refundable)}`;
+				}
+				
+				return true;
 			};
 		},
 	},
@@ -1481,6 +1482,41 @@ export default {
 				this.editable_grand_total = parseFloat(newVal) || 0;
 			}
 		},
+		// Watch for items changes in return invoices to auto-calculate return amount
+		"invoice_doc.items": {
+			handler(newItems, oldItems) {
+				if (this.invoice_doc && this.invoice_doc.is_return && newItems) {
+					// Auto-calculate the return amount based on smart logic
+					const suggested_refund = this.getMaxRefundableAmount();
+					// Only set if user hasn't entered a value yet, otherwise let them type
+					if (this.return_amount === 0 || this.return_amount === undefined) {
+						this.return_amount = Math.max(0, suggested_refund);
+					}
+				}
+			},
+			deep: true
+		},
+		// Watch return amount to enforce min/max validation
+		return_amount(newVal) {
+			if (this.invoice_doc && this.invoice_doc.is_return) {
+				const max_refundable = this.getMaxRefundableAmount();
+				const num_value = parseFloat(newVal) || 0;
+				
+				// Enforce minimum 0
+				if (num_value < 0) {
+					this.$nextTick(() => {
+						this.return_amount = 0;
+					});
+				}
+				
+				// Enforce maximum suggested value
+				if (num_value > max_refundable) {
+					this.$nextTick(() => {
+						this.return_amount = max_refundable;
+					});
+				}
+			}
+		},
 	},
 	methods: {
 		extractSubmissionErrorMessage(exc) {
@@ -1595,6 +1631,98 @@ export default {
 			// Fallback: use the current invoice's total (absolute value for returns)
 			return Math.abs(this.invoice_doc.grand_total || this.invoice_doc.rounded_total || 0);
 		},
+		// Calculate outstanding balance (what customer still owes)
+		getOutstandingBalance() {
+			if (!this.invoice_doc || !this.invoice_doc.is_return) {
+				return 0;
+			}
+			const original_total = this.getOriginalInvoiceTotal();
+			const original_paid = this.getOriginalPaidAmount();
+			return Math.max(0, original_total - original_paid);
+		},
+		// Calculate total of current return items
+		getCurrentReturnItemsTotal() {
+			if (!this.invoice_doc || !this.invoice_doc.is_return || !this.invoice_doc.items) {
+				return 0;
+			}
+			const total = this.invoice_doc.items.reduce((sum, item) => {
+				return sum + (Math.abs(item.amount || 0) || 0);
+			}, 0);
+			// Fix floating-point precision with proper rounding
+			return this.flt(total, this.currency_precision);
+		},
+		// Calculate the smart refund amount based on your logic
+		getCalculatedRefundAmount() {
+			if (!this.invoice_doc || !this.invoice_doc.is_return) {
+				return 0;
+			}
+			// Wait for original invoice data to load before computing
+			if (!this.original_invoice_data) {
+				return 0;
+			}
+
+			const original_paid = this.flt(
+				this.original_invoice_data.paid_amount || 0,
+				this.currency_precision
+			);
+			const return_items_total = this.getCurrentReturnItemsTotal();
+
+			// outstanding_amount on the original invoice is what the client STILL OWES us (positive)
+			// or what we owe them (negative, after over-return). ERPNext updates this live.
+			// Logic: returned goods first cancel what client owes, remainder is cash refund.
+			//
+			// Example: total=10000, paid=5000, outstanding=5000
+			//   return items=6645 → 6645 - 5000 = 1645 refund ✓
+			//
+			// Example: total=15000, paid=10000, outstanding=5000
+			//   1st return items=7500 → 7500 - 5000 = 2500 refund ✓
+			//   (after 1st return, outstanding on original = 5000 - 2500 = 2500)
+			//   2nd return items=7500 → 7500 - 2500 = 5000 refund ✓
+			//   Total refunded = 7500 ✓ (total returned = 15000, total = 15000 so all paid back)
+			const outstanding = this.flt(
+				this.original_invoice_data.outstanding_amount || 0,
+				this.currency_precision
+			);
+
+			// Debt the client still owes (floor at 0 — negative outstanding means we already owe them)
+			const client_debt = Math.max(0, outstanding);
+
+			// Refund = returned items value minus what client still owed us
+			const refund = this.flt(return_items_total - client_debt, this.currency_precision);
+
+			// Can only refund up to what was actually paid, minimum 0
+			return Math.min(Math.max(0, refund), original_paid);
+		},
+		// Get maximum refundable amount
+		getMaxRefundableAmount() {
+			if (!this.invoice_doc || !this.invoice_doc.is_return) {
+				return 0;
+			}
+			// Return 0 until original_invoice_data is loaded — locks the field
+			if (!this.original_invoice_data) {
+				return 0;
+			}
+			return this.flt(this.getCalculatedRefundAmount(), this.currency_precision);
+		},
+		// Get dynamic hint for return amount field
+		getReturnAmountHint() {
+			if (!this.invoice_doc || !this.invoice_doc.is_return) {
+				return "Le montant maximal remboursable est le montant initialement payé.";
+			}
+			if (!this.original_invoice_data) {
+				return "Chargement des données de la facture originale...";
+			}
+
+			const return_items_total = this.getCurrentReturnItemsTotal();
+			const max_refundable = this.getMaxRefundableAmount();
+			const outstanding = this.flt(this.original_invoice_data.outstanding_amount || 0, this.currency_precision);
+			const client_debt = Math.max(0, outstanding);
+
+			if (max_refundable <= 0) {
+				return `Retour de ${this.formatCurrency(return_items_total)} appliqué sur la dette client (${this.formatCurrency(client_debt)}). Aucun remboursement en espèces.`;
+			}
+			return `Remboursement maximal: ${this.formatCurrency(max_refundable)} (Retour ${this.formatCurrency(return_items_total)} − Dette ${this.formatCurrency(client_debt)})`;
+		},
 		loadOriginalInvoiceData() {
 			if (!this.invoice_doc || !this.invoice_doc.is_return || !this.invoice_doc.return_against) {
 				this.original_invoice_data = null;
@@ -1611,8 +1739,19 @@ export default {
 				callback: (response) => {
 					if (response.message) {
 						this.original_invoice_data = response.message;
-						// Set default return amount to the original paid amount
-						this.return_amount = this.getOriginalPaidAmount();
+						// Now that we have the data, set the correct refund amount
+						const max_refundable = this.getMaxRefundableAmount();
+						this.return_amount = max_refundable;
+						// Also update the default payment to the correct refund amount (negative)
+						if (this.invoice_doc && this.invoice_doc.payments) {
+							const default_payment = this.invoice_doc.payments.find((p) => p.default === 1);
+							if (default_payment) {
+								default_payment.amount = -Math.abs(max_refundable);
+								if (default_payment.base_amount !== undefined) {
+									default_payment.base_amount = -Math.abs(max_refundable);
+								}
+							}
+						}
 					}
 				},
 				error: (error) => {
@@ -1743,6 +1882,16 @@ export default {
 					}
 				}
 				
+				// VALIDATION: Sales Person must be selected
+				if (!this.sales_person || this.sales_person.trim() === "") {
+					this.eventBus.emit("show_message", {
+						title: __("Veuillez sélectionner un vendeur avant de soumettre le paiement."),
+						color: "error",
+					});
+					frappe.utils.play_sound("error");
+					return;
+				}
+				
 				// For return invoices, ensure payment amounts are negative
 				if (this.invoice_doc.is_return) {
 					this.ensureReturnPaymentsAreNegative();
@@ -1831,13 +1980,16 @@ export default {
 					return;
 				}
 				// Validate return amount for return invoices
-				if (this.invoice_doc.is_return && this.return_amount > this.getOriginalPaidAmount()) {
-					this.eventBus.emit("show_message", {
-						title: `Return amount cannot exceed original paid amount (${this.formatCurrency(this.getOriginalPaidAmount())})`,
-						color: "error",
-					});
-					frappe.utils.play_sound("error");
-					return;
+				if (this.invoice_doc.is_return) {
+					const max_refundable = this.getMaxRefundableAmount();
+					if (this.return_amount > max_refundable + 0.01) {
+						this.eventBus.emit("show_message", {
+							title: `Le remboursement ne peut pas dépasser ${this.formatCurrency(max_refundable)}`,
+							color: "error",
+						});
+						frappe.utils.play_sound("error");
+						return;
+					}
 				}
 				// Validate customer credit redemption
 				let credit_calc_check = this.customer_credit_dict.filter((row) => {
@@ -3295,23 +3447,12 @@ export default {
 				if (invoice_doc.is_return) {
 					this.is_return = true;
 					this.is_credit_return = false;
-					if (!hasReturnPayments) {
-						// Reset all payment amounts to zero for returns
-						invoice_doc.payments.forEach((payment) => {
-							payment.amount = 0;
-							payment.base_amount = 0;
-						});
-						// Set default payment to negative amount for returns
-						if (default_payment) {
-							const amount = invoice_doc.rounded_total || invoice_doc.grand_total;
-							default_payment.amount = -Math.abs(amount);
-							if (default_payment.base_amount !== undefined) {
-								default_payment.base_amount = -Math.abs(amount);
-							}
-						}
-					} else {
-						this.ensureReturnPaymentsAreNegative();
-					}
+					this.return_amount = 0; // Reset — will be set once original_invoice_data loads
+					// Reset all payments to 0 for returns — will be set after refund calc
+					invoice_doc.payments.forEach((payment) => {
+						payment.amount = 0;
+						payment.base_amount = 0;
+					});
 				} else if (default_payment) {
 					// For regular invoices, set positive amount
 					default_payment.amount = this.flt(
