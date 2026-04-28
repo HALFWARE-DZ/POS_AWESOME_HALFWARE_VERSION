@@ -173,32 +173,42 @@
 						}}</v-list-item-subtitle>
 					</div>
 				</v-list-item>
-				<v-list-item @click="$emit('open-payment-dialog')" class="menu-item-compact neutral-action">
+				<v-list-item 
+					@click="isOfflineMode ? null : $emit('open-payment-dialog')" 
+					:disabled="isOfflineMode"
+					class="menu-item-compact neutral-action"
+					:class="{ 'disabled-item': isOfflineMode }"
+				>
 					<template v-slot:prepend>
-						<div class="menu-icon-wrapper-compact neutral-icon">
+						<div class="menu-icon-wrapper-compact neutral-icon" :class="{ 'disabled-icon': isOfflineMode }">
 							<v-icon color="white" size="16">mdi-cash</v-icon>
 						</div>
 					</template>
 					<div class="menu-content-compact">
-						<v-list-item-title class="menu-item-title-compact">{{
+						<v-list-item-title class="menu-item-title-compact" :class="{ 'disabled-text': isOfflineMode }">{{
 							__("Sortie de fonds")
 						}}</v-list-item-title>
-						<v-list-item-subtitle class="menu-item-subtitle-compact">{{
+						<v-list-item-subtitle class="menu-item-subtitle-compact" :class="{ 'disabled-text': isOfflineMode }">{{
 							__("effectuer un paiement")
 						}}</v-list-item-subtitle>
 					</div>
 				</v-list-item>
-				<v-list-item @click="$emit('open-checkin-dialog')" class="menu-item-compact success-action">
+				<v-list-item 
+					@click="isOfflineMode ? null : $emit('open-checkin-dialog')" 
+					:disabled="isOfflineMode"
+					class="menu-item-compact success-action"
+					:class="{ 'disabled-item': isOfflineMode }"
+				>
 					<template v-slot:prepend>
-						<div class="menu-icon-wrapper-compact success-icon">
+						<div class="menu-icon-wrapper-compact success-icon" :class="{ 'disabled-icon': isOfflineMode }">
 							<v-icon color="white" size="16">mdi-cash-plus</v-icon>
 						</div>
 					</template>
 					<div class="menu-content-compact">
-						<v-list-item-title class="menu-item-title-compact">{{
+						<v-list-item-title class="menu-item-title-compact" :class="{ 'disabled-text': isOfflineMode }">{{
 							__("Entrée de fonds")
 						}}</v-list-item-title>
-						<v-list-item-subtitle class="menu-item-subtitle-compact">{{
+						<v-list-item-subtitle class="menu-item-subtitle-compact" :class="{ 'disabled-text': isOfflineMode }">{{
 							__("recevoir de l'argent")
 						}}</v-list-item-subtitle>
 					</div>
@@ -379,6 +389,7 @@
 
 <script>
 /* global frappe */
+import { isOffline } from "../../../offline/index.js";
 const FALLBACK_LANGUAGES = [
 	{ code: "en", name: "English", native_name: "English" },
 	{ code: "ar", name: "العربية", native_name: "العربية" },
@@ -426,10 +437,14 @@ export default {
 		window.removeEventListener("resize", this.handleResize);
 	},
 	computed: {
+		isOfflineMode() {
+			return !this.networkOnline || isOffline();
+		},
 		canChangeLanguage() {
 			return (
 				(this.selectedLanguage !== this.currentLanguage ||
 					this.useWesternNumerals !== this.originalWesternNumerals) &&
+				this.selectedLanguage &&
 				!this.changing
 			);
 		},
@@ -1121,5 +1136,28 @@ export default {
 :deep([data-theme="dark"]) .western-numerals-switch .v-selection-control--dirty .v-switch__track,
 :deep(.v-theme--dark) .western-numerals-switch .v-selection-control--dirty .v-switch__track {
 	background-color: #4caf50 !important;
+}
+
+/* Disabled menu items styles */
+.disabled-item {
+	opacity: 0.5 !important;
+	cursor: not-allowed !important;
+	pointer-events: none !important;
+}
+
+.disabled-icon {
+	color: #999 !important;
+	opacity: 0.6 !important;
+}
+
+.disabled-text {
+	color: #999 !important;
+	opacity: 0.6 !important;
+}
+
+/* Prevent hover effects on disabled items */
+.menu-item-compact.disabled-item:hover {
+	background-color: transparent !important;
+	transform: none !important;
 }
 </style>

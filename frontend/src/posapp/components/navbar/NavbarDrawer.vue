@@ -24,18 +24,28 @@
 
 		<v-divider />
 
+		<!-- Offline Warning -->
+		<div v-if="isOfflineMode" class="offline-warning">
+			<v-icon class="offline-icon">mdi-wifi-off</v-icon>
+			<span class="offline-text">Mode Hors Ligne</span>
+		</div>
+		
+		<v-divider v-if="isOfflineMode" />
+
 		<v-list density="compact" nav v-model:selected="activeItem" selected-class="active-item">
 			<v-list-item
 				v-for="(item, index) in items"
 				:key="item.text"
 				:value="index"
-				@click="changePage(item.text)"
+				@click="isOfflineMode ? null : changePage(item.text)"
+				:disabled="isOfflineMode"
 				class="drawer-item"
+				:class="{ 'disabled-item': isOfflineMode }"
 			>
 				<template v-slot:prepend>
-					<v-icon class="drawer-icon">{{ item.icon }}</v-icon>
+					<v-icon class="drawer-icon" :class="{ 'disabled-icon': isOfflineMode }">{{ item.icon }}</v-icon>
 				</template>
-				<v-list-item-title class="drawer-item-title">{{ item.text }}</v-list-item-title>
+				<v-list-item-title class="drawer-item-title" :class="{ 'disabled-text': isOfflineMode }">{{ item.text }}</v-list-item-title>
 			</v-list-item>
 		</v-list>
 		<!-- Sport section, hidden by default -->
@@ -47,6 +57,7 @@
 
 <script>
 import { useRtl } from "../../composables/useRtl.js";
+import { isOffline } from "../../../offline/index.js";
 
 export default {
 	name: "NavbarDrawer",
@@ -65,6 +76,7 @@ export default {
 		items: Array,
 		item: Number,
 		isDark: Boolean,
+		networkOnline: Boolean,
 	},
 	data() {
 		return {
@@ -79,6 +91,9 @@ export default {
 			// Use an opaque background in light mode so that
 			// underlying content doesn't show through the drawer
 			return this.isDark ? true : "rgba(255,255,255,1)";
+		},
+		isOfflineMode() {
+			return !this.networkOnline || isOffline();
 		},
 	},
 	watch: {
@@ -270,4 +285,49 @@ export default {
 		background-color: var(--pos-navbar-bg) !important;
 	}
 }
+
+/* Offline warning styles */
+.offline-warning {
+	display: flex;
+	align-items: center;
+	padding: 12px 16px;
+	background-color: rgba(244, 67, 54, 0.1);
+	border-left: 4px solid #f44336;
+	margin: 8px 0;
+}
+
+.offline-icon {
+	color: #f44336;
+	margin-right: 12px;
+	font-size: 20px;
+}
+
+.offline-text {
+	font-weight: 600;
+	color: #f44336;
+	font-size: 0.9rem;
+}
+
+/* Disabled navigation items */
+.disabled-item {
+	opacity: 0.5 !important;
+	cursor: not-allowed !important;
+	pointer-events: none !important;
+}
+
+.disabled-icon {
+	color: #999 !important;
+	opacity: 0.6 !important;
+}
+
+.disabled-text {
+	color: #999 !important;
+	opacity: 0.6 !important;
+}
+
+/* Prevent hover effects on disabled items */
+.v-list-item.disabled-item:hover {
+	background-color: transparent !important;
+}
 </style>
+

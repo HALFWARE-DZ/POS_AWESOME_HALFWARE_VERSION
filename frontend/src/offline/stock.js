@@ -111,9 +111,15 @@ export function updateLocalStock(items) {
 			// Only update if the item already exists in cache
 			// Don't create new entries without knowing the actual stock
 			if (stockCache[key]) {
-				// Reduce quantity by sold amount
-				const soldQty = Math.abs(item.qty || 0);
-				stockCache[key].actual_qty = Math.max(0, stockCache[key].actual_qty - soldQty);
+				// Handle both sales (positive qty) and returns (negative qty)
+				const itemQty = item.qty || 0;
+				if (itemQty > 0) {
+					// Sales: reduce stock
+					stockCache[key].actual_qty = Math.max(0, stockCache[key].actual_qty - itemQty);
+				} else if (itemQty < 0) {
+					// Returns: increase stock
+					stockCache[key].actual_qty = stockCache[key].actual_qty + Math.abs(itemQty);
+				}
 				stockCache[key].last_updated = new Date().toISOString();
 			}
 			// If item doesn't exist in cache, we don't create it

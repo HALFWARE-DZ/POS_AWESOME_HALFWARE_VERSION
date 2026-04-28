@@ -79,6 +79,7 @@
 			:company="company"
 			:company-img="companyImg"
 			:items="items"
+			:network-online="networkOnline"
 			@change-page="changePage"
 		/>
 

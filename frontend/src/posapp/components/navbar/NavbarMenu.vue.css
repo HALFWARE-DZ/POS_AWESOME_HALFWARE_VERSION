@@ -499,3 +499,26 @@
 :deep(.v-theme--dark) .western-numerals-switch .v-selection-control--dirty .v-switch__track {
 	background-color: #4caf50 !important;
 }
+
+/* Disabled menu items styles */
+.disabled-item {
+	opacity: 0.5 !important;
+	cursor: not-allowed !important;
+	pointer-events: none !important;
+}
+
+.disabled-icon {
+	color: #999 !important;
+	opacity: 0.6 !important;
+}
+
+.disabled-text {
+	color: #999 !important;
+	opacity: 0.6 !important;
+}
+
+/* Prevent hover effects on disabled items */
+.menu-item-compact.disabled-item:hover {
+	background-color: transparent !important;
+	transform: none !important;
+}
