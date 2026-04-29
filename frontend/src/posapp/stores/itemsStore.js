@@ -786,6 +786,7 @@ export const useItemsStore = defineStore("items", () => {
 			return;
 		}
 
+		
 		const includeSerial = normalizeBooleanSetting(posProfile.value?.posa_search_serial_no);
 		const includeBatch = normalizeBooleanSetting(posProfile.value?.posa_search_batch_no);
 
@@ -826,6 +827,14 @@ export const useItemsStore = defineStore("items", () => {
 
 			if (includeBatch && Array.isArray(item.batch_no_data)) {
 				item.batch_no_data.forEach((b) => searchFields.push(b?.batch_no));
+			}
+
+			// Add custom fields to search index
+			if (item.custom_la_famille) {
+				searchFields.push(String(item.custom_la_famille));
+			}
+			if (item.custom_la_collection) {
+				searchFields.push(String(item.custom_la_collection));
 			}
 
 			item._search_index = searchFields
@@ -869,6 +878,14 @@ export const useItemsStore = defineStore("items", () => {
 
 			if (Array.isArray(item.barcodes)) {
 				item.barcodes.forEach((code) => fields.push(code));
+			}
+
+			// Add custom fields to fallback search
+			if (item.custom_la_famille) {
+				fields.push(String(item.custom_la_famille));
+			}
+			if (item.custom_la_collection) {
+				fields.push(String(item.custom_la_collection));
 			}
 
 			// Note: Dynamic checking of serial/batch here is slow, but this is a fallback

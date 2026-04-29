@@ -295,6 +295,8 @@ export async function searchStoredItems({ search = "", itemGroup = "", limit = 1
 			pushValue(item.brand);
 			pushValue(item.item_group);
 			pushValue(item.attributes);
+			pushValue(item.custom_la_famille);
+			pushValue(item.custom_la_collection);
 
 			const handleArray = (source, extractor) => {
 				if (!Array.isArray(source)) {

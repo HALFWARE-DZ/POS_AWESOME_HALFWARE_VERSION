@@ -478,13 +478,28 @@ def _build_search_plan(
                     ["name", "like", f"{base_search_term}%"],
                     ["item_name", "like", f"{base_search_term}%"],
                     ["item_code", "like", f"%{base_search_term}%"],
+                    ["custom_la_famille", "like", f"%{base_search_term}%"],
+                    ["custom_la_collection", "like", f"%{base_search_term}%"],
                 ]
                 item_code_for_search = base_search_term
+                # Debug logging
+                frappe.logger().info(f"POS Search - raw_search_value: {raw_search_value}, base_search_term: {base_search_term}, or_filters: {or_filters}")
 
             if len(raw_search_value) < min_search_len:
                 filters["item_code"] = base_search_term
         elif resolved_item_code:
             filters["item_code"] = resolved_item_code
+        elif raw_search_value and len(raw_search_value) >= min_search_len:
+            # Add OR filters for custom fields even when use_limit_search is False
+            or_filters = [
+                ["name", "like", f"%{base_search_term}%"],
+                ["item_name", "like", f"%{base_search_term}%"],
+                ["item_code", "like", f"%{base_search_term}%"],
+                ["custom_la_famille", "like", f"%{base_search_term}%"],
+                ["custom_la_collection", "like", f"%{base_search_term}%"],
+            ]
+            # Debug logging
+            frappe.logger().info(f"POS Search (no limit) - raw_search_value: {raw_search_value}, base_search_term: {base_search_term}, or_filters: {or_filters}")
 
     if item_group and item_group.upper() != "ALL":
         filters["item_group"] = ["like", f"%{item_group}%"]
@@ -574,6 +589,8 @@ def _collect_searchable_values(row: Dict[str, Any]) -> List[str]:
         row.get("brand"),
         row.get("item_group"),
         row.get("attributes"),
+        row.get("custom_la_famille"),
+        row.get("custom_la_collection"),
     ]
 
     item_attributes = row.get("item_attributes")
@@ -623,6 +640,12 @@ def _matches_search_words(row: Dict[str, Any], search_words: Sequence[str], word
         return True
 
     searchable_values = _collect_searchable_values(row)
+    # Debug logging for first few items only to avoid spam
+    if frappe.flags.debug_search and len(searchable_values) > 10:
+        custom_famille = row.get("custom_la_famille")
+        custom_collection = row.get("custom_la_collection")
+        frappe.logger().info(f"POS Word Filter - item: {row.get('item_code')}, custom_la_famille: {custom_famille}, custom_la_collection: {custom_collection}, search_words: {search_words}, word_filter_active: {word_filter_active}")
+    
     for word in search_words:
         if not any(word in value for value in searchable_values):
             return False
@@ -696,6 +719,8 @@ def _run_item_query(
                     ["name", "like", f"%{plan.item_code_for_search}%"],
                     ["item_name", "like", f"%{plan.item_code_for_search}%"],
                     ["item_code", "like", f"%{plan.item_code_for_search}%"],
+                    ["custom_la_famille", "like", f"%{plan.item_code_for_search}%"],
+                    ["custom_la_collection", "like", f"%{plan.item_code_for_search}%"],
                 ],
                 fields=plan.fields,
                 limit_start=page_start,
@@ -1349,6 +1374,30 @@ def get_price_for_uom(item_code, price_list, uom):
         "price_list_rate",
     )
     return price
+
+
+@frappe.whitelist()
+def test_custom_field_search(search_value="CHOUSEURS"):
+    """Test function to verify custom field search is working."""
+    # Direct database query to test
+    items = frappe.db.get_all(
+        "Item",
+        filters={
+            "disabled": 0,
+            "is_sales_item": 1,
+            "custom_la_famille": ["like", f"%{search_value}%"]
+        },
+        fields=["item_code", "item_name", "custom_la_famille", "custom_la_collection"],
+        limit=10
+    )
+    
+    frappe.logger().info(f"Test Custom Field Search - Found {len(items)} items for '{search_value}': {[i.item_code for i in items]}")
+    
+    return {
+        "search_value": search_value,
+        "items_found": len(items),
+        "items": items
+    }
 
 
 @frappe.whitelist()

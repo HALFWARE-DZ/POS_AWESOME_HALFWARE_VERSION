@@ -350,7 +350,7 @@
 							@update:model-value="update_delivery_date()"
 						/>
 					</v-col>
-					<v-col cols="6" v-if="returnValidityEnabled && invoice_doc && !invoice_doc.is_return">
+					<!-- <v-col cols="6" v-if="returnValidityEnabled && invoice_doc && !invoice_doc.is_return">
 						<VueDatePicker
 							v-model="return_valid_upto_date"
 							model-type="format"
@@ -362,7 +362,7 @@
 							:placeholder="frappe._('Return Valid Until')"
 							@update:model-value="updateReturnValidUpto"
 						/>
-					</v-col>
+					</v-col> -->
 					<!-- Shipping Address Selection (if delivery date is set) -->
 					<v-col cols="12" v-if="invoice_doc && invoice_doc.posa_delivery_date">
 						<v-autocomplete
@@ -569,7 +569,7 @@
 							</v-chip>
 						</div>
 					</v-col>
-					<v-col
+					<!-- <v-col
 						cols="6"
 						v-if="invoice_doc && !invoice_doc.is_return && pos_profile.use_customer_credit"
 					>
@@ -580,7 +580,7 @@
 							class="my-0 pa-1"
 							@update:model-value="get_available_credit(redeem_customer_credit)"
 						></v-switch>
-					</v-col>
+					</v-col> -->
 				</v-row>
 
 				<!-- Return Amount Section - Only show for returns -->
