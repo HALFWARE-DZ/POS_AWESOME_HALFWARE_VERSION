@@ -507,8 +507,8 @@ def _build_search_plan(
     if not posa_show_template_items:
         filters.update(HAS_VARIANTS_EXCLUSION)
 
-    if pos_profile.get("posa_hide_variants_items"):
-        filters["variant_of"] = ["is", "not set"]
+    # if pos_profile.get("posa_hide_variants_items"):
+    #     filters["variant_of"] = ["is", "not set"]
 
     search_limit = 0
     if use_limit_search:
