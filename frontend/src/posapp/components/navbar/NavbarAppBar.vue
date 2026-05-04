@@ -67,6 +67,21 @@
 						isRtl ? 'rtl-primary-actions' : 'ltr-primary-actions',
 					]"
 				>
+				<v-btn
+						variant="elevated"
+						color="primary"
+						size="large"
+						:class="[
+							'special-search-btn pos-themed-button',
+							isRtl ? 'rtl-special-search' : 'ltr-special-search',
+						]"
+						:aria-label="__('Recherche Spéciale')"
+						@click="openAttributeSearchDialog"
+					>
+						<v-icon class="mr-2">mdi-magnify</v-icon>
+						<span class="search-btn-text">{{ __("RECHERCHE") }}</span>
+						<span class="search-btn-subtitle">{{ __("SPÉCIALE") }}</span>
+					</v-btn>
 					<v-btn
 						icon
 						size="small"
@@ -91,6 +106,9 @@
 					<div class="notification-wrapper">
 						<slot name="notification-bell"></slot>
 					</div>
+
+					<!-- Special Search Button -->
+					
 
 					<!-- Mobile Menu - contains all other items -->
 					<div class="menu-wrapper">
@@ -180,6 +198,25 @@
 						</v-tooltip>
 					</v-btn>
 
+					<!-- Special Search Button -->
+					<v-btn
+						variant="elevated"
+						color="primary"
+						size="large"
+						:class="[
+							'special-search-btn pos-themed-button',
+							isRtl ? 'rtl-special-search' : 'ltr-special-search',
+						]"
+						:aria-label="__('Recherche Spéciale')"
+						@click="openAttributeSearchDialog"
+						@keydown.enter="openAttributeSearchDialog"
+						tabindex="0"
+					>
+						<v-icon class="mr-2">mdi-magnify</v-icon>
+						<span class="search-btn-text">{{ __("RECHERCHE") }}</span>
+						<span class="search-btn-subtitle">{{ __("SPÉCIALE") }}</span>
+					</v-btn>
+
 					<!-- Notification bell between offline invoices and menu -->
 					<div class="notification-wrapper">
 						<slot name="notification-bell"></slot>
@@ -210,6 +247,18 @@
 				/>
 			</div>
 		</transition>
+	<!-- Attribute Search Dialog -->
+		<v-dialog 
+			v-model="showAttributeSearchDialog" 
+			max-width="800px" 
+			persistent
+			content-class="attribute-search-dialog"
+		>
+			<ItemAttributeSearchDialog 
+				@close="showAttributeSearchDialog = false"
+				:pos-profile="posProfile"
+			/>
+		</v-dialog>
 	</v-app-bar>
 </template>
 
@@ -217,11 +266,13 @@
 import { useRtl } from "../../composables/useRtl.js";
 import posLogo from "../pos/pos.png";
 import NavbarInfoGadgets from "./NavbarInfoGadgets.vue";
+import ItemAttributeSearchDialog from "./ItemAttributeSearchDialog.vue";
 
 export default {
 	name: "NavbarAppBar",
 	components: {
 		NavbarInfoGadgets,
+		ItemAttributeSearchDialog,
 	},
 	setup() {
 		const { isRtl, rtlStyles, rtlClasses } = useRtl();
@@ -236,6 +287,7 @@ export default {
 		return {
 			windowWidth: window.innerWidth,
 			resizeRafId: null,
+			showAttributeSearchDialog: false,
 		};
 	},
 	mounted() {
@@ -342,6 +394,10 @@ export default {
 					});
 				}
 			}
+		},
+
+		openAttributeSearchDialog() {
+			this.showAttributeSearchDialog = true;
 		},
 	},
 	emits: ["nav-click", "go-desk", "show-offline-invoices"],
@@ -748,6 +804,63 @@ export default {
 	border: 1px solid rgba(25, 118, 210, 0.12);
 	border-radius: 12px;
 	backdrop-filter: blur(8px);
+}
+
+/* Special Search Button - Prominent Style */
+.special-search-btn {
+	position: relative;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	padding: 12px 24px !important;
+	min-width: 180px !important;
+	min-height: 56px !important;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+	border: none !important;
+	border-radius: 28px !important;
+	box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3) !important;
+	backdrop-filter: blur(8px);
+	text-transform: uppercase;
+	font-weight: 700;
+	letter-spacing: 1px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+}
+
+.special-search-btn:hover {
+	transform: translateY(-2px) scale(1.02);
+	background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%) !important;
+	box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4) !important;
+}
+
+.special-search-btn:active {
+	transform: translateY(0) scale(0.98);
+}
+
+.search-btn-text {
+	font-size: 1rem;
+	line-height: 1;
+	color: white !important;
+	font-weight: 700;
+	margin-bottom: 2px;
+}
+
+.search-btn-subtitle {
+	font-size: 0.625rem;
+	line-height: 1;
+	color: rgba(255, 255, 255, 0.8) !important;
+	font-weight: 500;
+	letter-spacing: 2px;
+}
+
+.rtl-special-search {
+	order: 4;
+	/* Fourth in actions section for RTL */
+}
+
+.ltr-special-search {
+	order: 4;
+	/* Fourth in actions section for LTR */
 }
 
 .offline-invoices-btn .pos-text-primary {

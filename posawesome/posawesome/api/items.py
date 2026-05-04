@@ -1412,3 +1412,207 @@ def get_item_brand(item_code):
     if not brand and data.get("variant_of"):
         brand = frappe.db.get_value("Item", data.get("variant_of"), "brand")
     return normalize_brand(brand) if brand else ""
+
+
+@frappe.whitelist()
+def search_items_by_attributes(attribute_type, search_value, pos_profile=None, warehouse=None):
+    search_value = cstr(search_value).strip()
+    if not search_value:
+        return []
+
+    if not warehouse and pos_profile:
+        if isinstance(pos_profile, str):
+            try:
+                pos_profile_data = json.loads(pos_profile)
+            except:
+                pos_profile_data = frappe.get_doc("POS Profile", pos_profile).as_dict()
+        else:
+            pos_profile_data = pos_profile
+        warehouse = pos_profile_data.get("warehouse")
+
+    if not warehouse:
+        frappe.throw(_("Warehouse is required"))
+
+    warehouses = [warehouse]
+    if frappe.db.get_value("Warehouse", warehouse, "is_group"):
+        warehouses = frappe.db.get_descendants("Warehouse", warehouse) or []
+
+    try:
+        # Step 1: Fetch matching variants and sum their stock
+        # Using a subquery on `tabItem Variant Attribute` ensures we find the right variants
+        items = frappe.db.sql("""
+            SELECT 
+                i.item_code, 
+                i.item_name, 
+                i.image, 
+                i.stock_uom, 
+                i.variant_of,
+                SUM(b.actual_qty) as total_qty
+            FROM `tabItem` i
+            INNER JOIN `tabBin` b ON b.item_code = i.item_code
+            WHERE 
+                i.disabled = 0 
+                AND i.is_sales_item = 1 
+                AND b.warehouse IN %(warehouses)s
+                AND b.actual_qty > 0
+                AND i.item_code IN (
+                    SELECT DISTINCT parent 
+                    FROM `tabItem Variant Attribute` 
+                    WHERE attribute_value LIKE %(search)s
+                )
+            GROUP BY i.item_code
+        """, {
+            "search": f"%{search_value}%",
+            "warehouses": tuple(warehouses)
+        }, as_dict=True)
+
+        if not items:
+            return []
+
+        # Step 2: Fetch all attributes for the matched variants
+        item_codes = [d.item_code for d in items]
+        attributes_data = frappe.get_all(
+            "Item Variant Attribute",
+            filters={"parent": ["in", item_codes]},
+            fields=["parent", "attribute", "attribute_value"]
+        )
+
+        # Map attributes to their parent item code
+        attrs_by_item = {}
+        for attr in attributes_data:
+            attrs_by_item.setdefault(attr.parent, {})[attr.attribute] = attr.attribute_value
+
+        # Step 3: Group by Template for the Matrix UI
+        template_map = {}
+        
+        for item in items:
+            template_code = item.variant_of or item.item_code
+            
+            if template_code not in template_map:
+                # Resolve template metadata
+                if item.variant_of:
+                    template_info = frappe.db.get_value("Item", item.variant_of, 
+                        ["item_name", "image", "stock_uom"], as_dict=True)
+                    t_name = template_info.get("item_name") or item.item_name
+                    t_image = template_info.get("image") or item.image
+                    t_uom = template_info.get("stock_uom") or item.stock_uom
+                else:
+                    t_name, t_image, t_uom = item.item_name, item.image, item.stock_uom
+                
+                template_map[template_code] = {
+                    "template_code": template_code,
+                    "template_name": t_name,
+                    "template_image": t_image,
+                    "stock_uom": t_uom,
+                    "variants": [],
+                    "total_available_qty": 0,
+                    "variant_count": 0
+                }
+            
+            # Append Variant with its mapped attributes
+            template_map[template_code]["variants"].append({
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "image": item.image,
+                "stock_uom": item.stock_uom,
+                "total_qty": item.total_qty,
+                "attributes": attrs_by_item.get(item.item_code, {}) # Passes the mapped attributes to Vue
+            })
+            
+            template_map[template_code]["total_available_qty"] += item.total_qty
+            template_map[template_code]["variant_count"] = len(template_map[template_code]["variants"])
+        
+        return list(template_map.values())
+        
+    except Exception as e:
+        frappe.log_error(f"Error in search_items_by_attributes: {str(e)}", "POS Awesome")
+        return []
+
+
+def get_template_variants_with_stock(template_code, attribute_type, search_value, warehouses):
+    """
+    Get detailed variant information for a template with stock matrix.
+    
+    Args:
+        template_code: The template item code
+        attribute_type: 'Size' or 'Color'
+        search_value: The attribute value being searched for
+        warehouses: List of warehouses to check stock
+    
+    Returns:
+        List of variants with their attributes and stock information
+    """
+    warehouses_str = "', '".join([w.replace("'", "\\'") for w in warehouses])
+    
+    # Get variants with their attributes and stock
+    variant_query = """
+        SELECT DISTINCT
+            i.item_code,
+            i.item_name,
+            i.image,
+            i.stock_uom,
+            iva.attribute,
+            iva.attribute_value,
+            b.actual_qty,
+            b.warehouse
+        FROM `tabItem` i
+        INNER JOIN `tabItem Variant Attribute` iva ON iva.parent = i.item_code
+        INNER JOIN `tabBin` b ON b.item_code = i.item_code
+        WHERE 
+            i.variant_of = %s
+            AND i.disabled = 0
+            AND b.warehouse IN ('%s')
+            AND b.actual_qty > 0
+        ORDER BY i.item_name, iva.attribute
+    """
+    
+    formatted_variant_query = variant_query % (template_code, warehouses_str)
+    frappe.logger().info(f"Variant Query: {formatted_variant_query}")
+    
+    variants = frappe.db.sql(formatted_variant_query, as_dict=True)
+    
+    # Group variants by item_code and organize attributes
+    variant_map = {}
+    for variant in variants:
+        item_code = variant.item_code
+        if item_code not in variant_map:
+            variant_map[item_code] = {
+                'item_code': item_code,
+                'item_name': variant.item_name,
+                'image': variant.image,
+                'stock_uom': variant.stock_uom,
+                'attributes': {},
+                'total_qty': 0,
+                'warehouses': {}
+            }
+        
+        # Add attribute
+        variant_map[item_code]['attributes'][variant.attribute] = variant.attribute_value
+        
+        # Add stock information
+        warehouse = variant.warehouse
+        qty = flt(variant.actual_qty)
+        
+        if warehouse not in variant_map[item_code]['warehouses']:
+            variant_map[item_code]['warehouses'][warehouse] = 0
+        variant_map[item_code]['warehouses'][warehouse] += qty
+        variant_map[item_code]['total_qty'] += qty
+    
+    return list(variant_map.values())
+
+
+@frappe.whitelist()
+def get_item_attribute_values(attribute_type):
+    """
+    Get all available values for a specific item attribute type.
+    Now simplified - just return empty list since we search directly in attributes field
+    Users can type any value they want.
+    
+    Args:
+        attribute_type: 'Size' or 'Colour'
+    
+    Returns:
+        Empty list - users type manual values
+    """
+    # Return empty list - users will type values manually
+    return []

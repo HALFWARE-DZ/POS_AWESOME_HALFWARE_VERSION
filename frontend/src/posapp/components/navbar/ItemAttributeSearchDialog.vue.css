@@ -1,0 +1,139 @@
+
+.attribute-search-dialog {
+	max-height: 80vh;
+}
+
+.template-table {
+	cursor: pointer;
+}
+
+.template-table tbody tr:hover {
+	background-color: rgba(0, 0, 0, 0.04);
+}
+
+.matrix-view {
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+.variants-visual-list {
+	padding: 16px 0;
+}
+
+.variants-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 16px;
+}
+
+.variant-visual-card {
+	background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+	border: 1px solid #e9ecef;
+	border-radius: 16px;
+	padding: 16px;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	position: relative;
+	overflow: hidden;
+}
+
+.variant-visual-card::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 4px;
+	background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+	border-radius: 16px 16px 0 0;
+}
+
+.variant-visual-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+	border-color: #667eea;
+}
+
+.variant-header {
+	margin-bottom: 12px;
+}
+
+.variant-attributes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.attribute-tag {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
+	padding: 6px 12px;
+	border-radius: 20px;
+	font-size: 0.875rem;
+	font-weight: 600;
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+	box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.variant-footer {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+}
+
+.qty-chip {
+	font-weight: 600;
+	border-radius: 12px;
+}
+
+.results-container {
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+.search-btn {
+	min-height: 40px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+	.variants-grid {
+		grid-template-columns: 1fr;
+	}
+	
+	.variant-visual-card {
+		padding: 12px;
+	}
+	
+	.attribute-tag {
+		font-size: 0.75rem;
+		padding: 4px 8px;
+	}
+	
+	.template-table {
+		font-size: 0.875rem;
+	}
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+	.variant-visual-card {
+		background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+		border-color: #444;
+	}
+	
+	.variant-visual-card:hover {
+		border-color: #667eea;
+	}
+	
+	.attribute-tag {
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		color: white;
+	}
+	
+	.template-table tbody tr:hover {
+		background-color: rgba(255, 255, 255, 0.04);
+	}
+}
