@@ -64,18 +64,38 @@ def get_offers(profile):
         "valid_from": date,
         "valid_upto": date,
     }
+    
+    # Simplified SQL query to get active POS offers with their items
     data = (
         frappe.db.sql(
             """
-        SELECT *
-        FROM `tabPOS Offer`
+        SELECT 
+            po.name,
+            po.title,
+            po.description,
+            po.company,
+            po.pos_profile,
+            po.warehouse,
+            po.apply_on,
+            po.offer,
+            po.auto,
+            po.coupon_based,
+            po.valid_from,
+            po.valid_upto,
+            poi.article,
+            poi.type_de_remise,
+            poi.discount_percentage,
+            poi.discount_amount
+        FROM `tabPOS Offer` po
+        LEFT JOIN `tabPos Offer Items` poi ON po.name = poi.parent
         WHERE
-        disable = 0 AND
-        company = %(company)s AND
-        (pos_profile is NULL OR pos_profile  = '' OR  pos_profile = %(pos_profile)s) AND
-        (warehouse is NULL OR warehouse  = '' OR  warehouse = %(warehouse)s) AND
-        (valid_from is NULL OR valid_from  = '' OR  valid_from <= %(valid_from)s) AND
-        (valid_upto is NULL OR valid_upto  = '' OR  valid_upto >= %(valid_upto)s)
+        po.disable = 0 AND
+        po.company = %(company)s AND
+        (po.pos_profile is NULL OR po.pos_profile = '' OR po.pos_profile = %(pos_profile)s) AND
+        (po.warehouse is NULL OR po.warehouse = '' OR po.warehouse = %(warehouse)s) AND
+        (po.valid_from is NULL OR po.valid_from = '' OR po.valid_from <= %(valid_from)s) AND
+        (po.valid_upto is NULL OR po.valid_upto = '' OR po.valid_upto >= %(valid_upto)s)
+        ORDER BY po.name
     """,
             values=values,
             as_dict=1,
@@ -83,9 +103,86 @@ def get_offers(profile):
         or []
     )
 
+    # Group offers by parent offer and create individual offers for each pos_offer_item
+    offers_map = {}
+    for row in data:
+        offer_name = row.name
+        
+        # If there are pos_offer_items, create individual offers for each item
+        if row.article:
+            # Create a unique key for each offer item combination
+            item_key = f"{offer_name}_{row.article}"
+            if item_key not in offers_map:
+                offers_map[item_key] = {
+                    "name": offer_name,
+                    "row_id": item_key,  # Add unique row_id for frontend
+                    "title": row.title,
+                    "description": row.description,
+                    "company": row.company,
+                    "pos_profile": row.pos_profile,
+                    "warehouse": row.warehouse,
+                    "apply_on": "Item Code",  # Force to Item Code since we have specific article
+                    "offer": row.offer,
+                    "auto": row.auto,
+                    "coupon_based": row.coupon_based,
+                    "valid_from": row.valid_from,
+                    "valid_upto": row.valid_upto,
+                    "item": row.article,  # Set the item from pos_offer_items
+                    "apply_item_code": row.article,  # For frontend compatibility
+                    "discount_type": row.type_de_remise,  # Map type_de_remise to discount_type
+                    "discount_percentage": row.discount_percentage if row.type_de_remise == "Discount Percentage" else 0,
+                    "discount_amount": row.discount_amount if row.type_de_remise == "Discount Percentage" else 0,
+                    "buying_price": row.discount_amount if row.type_de_remise == "Buying Price" else 0,
+                }
+        else:
+            # If no pos_offer_items, create the base offer
+            if offer_name not in offers_map:
+                offers_map[offer_name] = {
+                    "name": offer_name,
+                    "title": row.title,
+                    "description": row.description,
+                    "company": row.company,
+                    "pos_profile": row.pos_profile,
+                    "warehouse": row.warehouse,
+                    "apply_on": row.apply_on,
+                    "offer": row.offer,
+                    "auto": row.auto,
+                    "coupon_based": row.coupon_based,
+                    "valid_from": row.valid_from,
+                    "valid_upto": row.valid_upto,
+                    "discount_percentage": 0,
+                    "discount_amount": 0,
+                    "buying_price": 0,
+                }
+
     promotional_scheme_offers = _get_promotional_scheme_offers(pos_profile) or []
 
-    return data + promotional_scheme_offers
+    return list(offers_map.values()) + promotional_scheme_offers
+
+
+@frappe.whitelist()
+def test_offers(profile):
+    """Test function to verify new simplified offer logic"""
+    try:
+        offers = get_offers(profile)
+        # Add debug logging for buying price offers
+        buying_price_offers = [o for o in offers if o.get('discount_type') == 'Buying Price']
+        debug_info = {
+            "total_offers": len(offers),
+            "buying_price_offers": len(buying_price_offers),
+            "buying_price_details": buying_price_offers
+        }
+        return {
+            "success": True,
+            "offers_count": len(offers),
+            "offers": offers,
+            "debug": debug_info
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 @frappe.whitelist()
