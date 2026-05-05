@@ -144,6 +144,9 @@ export default {
 		show(val) {
 			this.showPinDialog = val;
 			if (val) {
+				// Reset form when dialog opens
+				this.resetForm();
+				
 				// Extract profile name from object or string
 				if (typeof this.posProfile === 'object' && this.posProfile.name) {
 					this.selectedPosProfile = this.posProfile.name;

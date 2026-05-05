@@ -98,6 +98,24 @@
 				</v-list-item>
 
 				<v-list-item
+					@click="handleCashRegisterClick"
+					class="menu-item-compact primary-action"
+				>
+					<template v-slot:prepend>
+						<div class="menu-icon-wrapper-compact primary-icon">
+							<v-icon color="white" size="16">mdi-cash-register</v-icon>
+						</div>
+					</template>
+					<div class="menu-content-compact">
+						<v-list-item-title class="menu-item-title-compact">{{
+							__("Ouvrire Caisse")
+						}}</v-list-item-title>
+						<v-list-item-subtitle class="menu-item-subtitle-compact">{{
+							__("Open cash register")
+						}}</v-list-item-subtitle>
+					</div>
+				</v-list-item>
+				<v-list-item
 					v-if="posProfile.posa_allow_print_last_invoice"
 					@click="$emit('print-last-invoice')"
 					:disabled="!lastInvoiceId"
@@ -174,7 +192,7 @@
 					</div>
 				</v-list-item>
 				<v-list-item 
-					@click="isOfflineMode ? null : $emit('open-payment-dialog')" 
+					@click="handlePaymentDialogClick" 
 					:disabled="isOfflineMode"
 					class="menu-item-compact neutral-action"
 					:class="{ 'disabled-item': isOfflineMode }"
@@ -194,7 +212,7 @@
 					</div>
 				</v-list-item>
 				<v-list-item 
-					@click="isOfflineMode ? null : $emit('open-checkin-dialog')" 
+					@click="handleCheckinDialogClick" 
 					:disabled="isOfflineMode"
 					class="menu-item-compact success-action"
 					:class="{ 'disabled-item': isOfflineMode }"
@@ -385,11 +403,20 @@
 			</v-btn>
 		</template>
 	</v-snackbar>
+
+	<!-- PIN Validation Dialog -->
+	<PinDialog
+		v-model:show="showPinDialog"
+		:pos-profile="posProfile"
+		@validated="onPinValidated"
+		@cancelled="onPinCancelled"
+	/>
 </template>
 
 <script>
 /* global frappe */
 import { isOffline } from "../../../offline/index.js";
+import PinDialog from "../pos/PinDialog.vue";
 const FALLBACK_LANGUAGES = [
 	{ code: "en", name: "English", native_name: "English" },
 	{ code: "ar", name: "العربية", native_name: "العربية" },
@@ -399,6 +426,9 @@ const FALLBACK_LANGUAGES = [
 
 export default {
 	name: "NavbarMenu",
+	components: {
+		PinDialog
+	},
 	props: {
 		posProfile: { type: Object, default: () => ({}) },
 		lastInvoiceId: String,
@@ -423,6 +453,8 @@ export default {
 				type: "info",
 				timeout: 3000,
 			},
+			showPinDialog: false,
+			pendingAction: null, // 'payment' or 'checkin'
 		};
 	},
 	mounted() {
@@ -618,6 +650,82 @@ export default {
 			this.notification.show = false;
 		},
 
+		handlePaymentDialogClick() {
+			console.log('[NavbarMenu] Payment dialog clicked - Debug info:', {
+				isOfflineMode: this.isOfflineMode,
+				networkOnline: this.networkOnline,
+				manualOffline: this.manualOffline,
+				timestamp: new Date().toISOString()
+			});
+			
+			if (this.isOfflineMode) {
+				console.log('[NavbarMenu] Payment dialog blocked - offline mode');
+				return;
+			}
+			
+			console.log('[NavbarMenu] Requesting PIN for payment dialog');
+			this.pendingAction = 'payment';
+			this.showPinDialog = true;
+		},
+
+		handleCheckinDialogClick() {
+			console.log('[NavbarMenu] Checkin dialog clicked - Debug info:', {
+				isOfflineMode: this.isOfflineMode,
+				networkOnline: this.networkOnline,
+				manualOffline: this.manualOffline,
+				timestamp: new Date().toISOString()
+			});
+			
+			if (this.isOfflineMode) {
+				console.log('[NavbarMenu] Checkin dialog blocked - offline mode');
+				return;
+			}
+			
+			console.log('[NavbarMenu] Requesting PIN for checkin dialog');
+			this.pendingAction = 'checkin';
+			this.showPinDialog = true;
+		},
+
+		onPinValidated(data) {
+			console.log('[NavbarMenu] PIN validated for action:', this.pendingAction);
+			
+			if (this.pendingAction === 'payment') {
+				console.log('[NavbarMenu] Emitting open-payment-dialog event');
+				this.$emit('open-payment-dialog');
+			} else if (this.pendingAction === 'checkin') {
+				console.log('[NavbarMenu] Emitting open-checkin-dialog event');
+				this.$emit('open-checkin-dialog');
+			} else if (this.pendingAction === 'cash-register') {
+				console.log('[NavbarMenu] Opening cash register after PIN validation');
+				this.openCashRegister();
+			}
+			
+			this.pendingAction = null;
+		},
+
+		onPinCancelled() {
+			console.log('[NavbarMenu] PIN entry cancelled for action:', this.pendingAction);
+			this.pendingAction = null;
+		},
+
+		handleCashRegisterClick() {
+			console.log('[NavbarMenu] Cash register clicked - Debug info:', {
+				isOfflineMode: this.isOfflineMode,
+				networkOnline: this.networkOnline,
+				manualOffline: this.manualOffline,
+				timestamp: new Date().toISOString()
+			});
+			
+			if (this.isOfflineMode) {
+				console.log('[NavbarMenu] Cash register blocked - offline mode');
+				return;
+			}
+			
+			console.log('[NavbarMenu] Requesting PIN for cash register');
+			this.pendingAction = 'cash-register';
+			this.showPinDialog = true;
+		},
+
 		__(text) {
 			return window.__ ? window.__(text) : text;
 		},
@@ -632,6 +740,9 @@ export default {
 		"toggle-theme",
 		"logout",
 		"refresh-cache-usage",
+		"open-payment-dialog",
+		"open-checkin-dialog",
+		"open-cash-register",
 	],
 };
 </script>

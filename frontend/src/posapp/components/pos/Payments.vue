@@ -737,7 +737,7 @@
 						size="large"
 						color="success"
 						theme="dark"
-						@click="submit(undefined, false, true)"
+						@click="handleSubmitWithPin"
 						:loading="loading"
 						:disabled="loading || vaildatPayment"
 					>
@@ -891,6 +891,14 @@
 			</v-card>
 		</v-dialog>
 	</div>
+
+	<!-- PIN Validation Dialog -->
+	<PinDialog
+		v-model:show="showPinDialog"
+		:pos-profile="pos_profile"
+		@validated="onPinValidated"
+		@cancelled="onPinCancelled"
+	/>
 </template>
 
 <script>
@@ -920,10 +928,14 @@ import { useCustomersStore } from "../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
 import stockCoordinator from "../../utils/stockCoordinator.js";
 import { parseBooleanSetting } from "../../utils/stock.js";
+import PinDialog from "./PinDialog.vue";
 
 export default {
 	// Using format mixin for shared formatting methods
 	mixins: [format],
+	components: {
+		PinDialog
+	},
 	setup() {
 		const invoiceStore = useInvoiceStore();
 		const customersStore = useCustomersStore();
@@ -971,6 +983,8 @@ export default {
 			print_formats: [], // List of print formats
 			print_format: "", // Selected print format
 			addresses: [], // List of customer addresses
+			showPinDialog: false, // Show PIN validation dialog
+			pendingSubmitAction: null, // Store submit action parameters
 			is_user_editing_paid_change: false, // User interaction flag
 			highlightSubmit: false, // Highlight state for submit button
 			last_payment_change_was_cash: null, // Track last edited payment type
@@ -1861,6 +1875,25 @@ export default {
 				}
 			});
 		},
+		handleSubmitWithPin() {
+			console.log('[Payments] Submit requested - requesting PIN validation');
+			this.pendingSubmitAction = { event: undefined, payment_received: false, print: true };
+			this.showPinDialog = true;
+		},
+
+		onPinValidated(data) {
+			console.log('[Payments] PIN validated - proceeding with submit');
+			if (this.pendingSubmitAction) {
+				this.submit(this.pendingSubmitAction.event, this.pendingSubmitAction.payment_received, this.pendingSubmitAction.print);
+			}
+			this.pendingSubmitAction = null;
+		},
+
+		onPinCancelled() {
+			console.log('[Payments] PIN validation cancelled');
+			this.pendingSubmitAction = null;
+		},
+
 		// Submit payment after validation
 		async submit(event, payment_received = false, print = false) {
 			this.loading = true;
