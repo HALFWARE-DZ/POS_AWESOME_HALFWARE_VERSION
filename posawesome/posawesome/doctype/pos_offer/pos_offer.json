@@ -54,7 +54,10 @@
   "buying_price",
   "loyalty_point_scheme_section",
   "loyalty_program",
-  "loyalty_points"
+  "loyalty_points",
+  "pos_offer_items_section",
+  "pos_offer_items",
+  "quantity_and_amount_section"
  ],
  "fields": [
   {
@@ -277,9 +280,15 @@
    "label": "Loyalty Points"
   },
   {
-   "fieldname": "given_qty",
-   "fieldtype": "Float",
-   "label": "Given Quantity"
+   "fieldname": "pos_offer_items_section",
+   "fieldtype": "Section Break",
+   "label": "POS Offer Items"
+  },
+  {
+   "fieldname": "pos_offer_items",
+   "fieldtype": "Table",
+   "label": "POS Offer Items",
+   "options": "Pos Offer Items"
   },
   {
    "fieldname": "quantity_and_amount_section",
