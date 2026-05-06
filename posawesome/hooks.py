@@ -334,6 +334,7 @@ fixtures = [
                     "Sales Invoice-posa_return_valid_upto",
                     "POS Profile-posa_allow_multi_currency",
                     "POS Profile-posa_decimal_precision",
+                    "Sales Invoice Item-custom_promo_description",
                 ),
             ]
         ],
