@@ -156,6 +156,93 @@ def _apply_item_name_overrides(invoice_doc, overrides=None):
             item.name_overridden = 0
 
 
+def _populate_promo_descriptions(invoice_doc):
+    """Populate custom_promo_description field from applied POS offers."""
+    if not invoice_doc.get("items"):
+        return
+    
+    # Collect all unique offer names/row_ids first to optimize database queries
+    all_offer_ids = set()
+    item_offer_mapping = {}
+    
+    for item in invoice_doc.items:
+        posa_offers = item.get("posa_offers")
+        if not posa_offers:
+            continue
+            
+        try:
+            offer_row_ids = json.loads(posa_offers) if isinstance(posa_offers, str) else posa_offers
+            if not offer_row_ids or not isinstance(offer_row_ids, list):
+                continue
+                
+            # Store mapping of item to its offer IDs
+            item_offer_mapping[item.name] = offer_row_ids
+            all_offer_ids.update(offer_row_ids)
+            
+        except Exception as e:
+            # If there's any error parsing offers, continue with empty description
+            item.custom_promo_description = ""
+    
+    if not all_offer_ids:
+        return
+    
+    # Get all offer descriptions in one query
+    offer_descriptions = {}
+    try:
+        # Extract base offer names (remove suffixes if present)
+        base_offer_names = set()
+        for offer_id in all_offer_ids:
+            if '_' in str(offer_id):
+                base_name = str(offer_id).split('_')[0]
+                base_offer_names.add(base_name)
+            else:
+                base_offer_names.add(str(offer_id))
+        
+        if base_offer_names:
+            offer_data = frappe.db.sql(
+                """
+                SELECT name, description
+                FROM `tabPOS Offer`
+                WHERE name IN ({})
+                """.format(','.join(['%s'] * len(base_offer_names))),
+                list(base_offer_names),
+                as_dict=True
+            )
+            
+            for offer in offer_data:
+                offer_descriptions[offer.name] = offer.description or ""
+    
+    except Exception as e:
+        frappe.log_error(f"Error fetching offer descriptions: {e}")
+        return
+    
+    # Now populate the custom field for each item
+    for item in invoice_doc.items:
+        if item.name not in item_offer_mapping:
+            continue
+            
+        offer_row_ids = item_offer_mapping[item.name]
+        promo_descriptions = []
+        
+        for row_id in offer_row_ids:
+            # Extract base offer name
+            if '_' in str(row_id):
+                base_name = str(row_id).split('_')[0]
+            else:
+                base_name = str(row_id)
+            
+            # Get description for this offer
+            description = offer_descriptions.get(base_name, "")
+            if description and description not in promo_descriptions:
+                promo_descriptions.append(description)
+        
+        # Set the custom field with combined descriptions
+        if promo_descriptions:
+            item.custom_promo_description = " | ".join(promo_descriptions)
+        else:
+            item.custom_promo_description = ""
+
+
 def _get_available_stock(item):
     """Return available stock qty for an item row."""
     warehouse = item.get("warehouse")
@@ -362,9 +449,11 @@ def _absorb_distributed_discount_into_item_discount(invoice_doc):
         existing_discount = flt(item.get("discount_amount") or 0)
         new_discount_amount = existing_discount + distributed_per_unit
 
-        # Recalculate discount_percentage from price_list_rate (per unit basis)
+        # Calculate additional discount percentage from distributed amount
         if price_list_rate:
-            new_discount_pct = (new_discount_amount / price_list_rate) * 100
+            additional_discount_pct = (distributed_per_unit / price_list_rate) * 100
+            existing_discount_pct = flt(item.get("discount_percentage") or 0)
+            new_discount_pct = existing_discount_pct + additional_discount_pct
         else:
             new_discount_pct = flt(item.get("discount_percentage") or 0)
 
@@ -712,6 +801,9 @@ def update_invoice(data):
 
     # Reapply any custom item names after defaults are set
     _apply_item_name_overrides(invoice_doc, overrides)
+    
+    # Populate promo descriptions from applied offers
+    _populate_promo_descriptions(invoice_doc)
 
     # Remove duplicate taxes from item and profile templates
     _merge_duplicate_taxes(invoice_doc)
@@ -1056,6 +1148,10 @@ def submit_invoice(invoice, data, submit_in_background=False):
 
     # Ensure item name overrides are respected on submit
     _apply_item_name_overrides(invoice_doc)
+    
+    # Populate promo descriptions from applied offers
+    _populate_promo_descriptions(invoice_doc)
+    
     if invoice.get("posa_delivery_date"):
         invoice_doc.update_stock = 0
     mop_cash_list = [
@@ -1185,6 +1281,9 @@ def submit_in_background_job(kwargs):
             invoice_doc.validate_credit_limit()
 
         invoice_doc.remarks = _build_invoice_remarks(invoice_doc)
+        
+        # Populate promo descriptions from applied offers
+        _populate_promo_descriptions(invoice_doc)
 
         if invoice_doc.redeem_loyalty_points and not invoice_doc.loyalty_program:
             invoice_doc.loyalty_program = frappe.db.get_value(
